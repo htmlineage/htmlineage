@@ -341,3 +341,17 @@ export function fromReport(data, message) {
   }
   return null;
 }
+
+/**
+ * An expression for the formula line: plain arithmetic is spaced and written
+ * with − and ×; any other SQL is shown as written.
+ */
+export function tidyExpr(expr) {
+  if (!/^[\w\s.+\-*/(),]*$/.test(expr)) return expr;
+  return expr
+    .replace(
+      /\s*([-+*/])\s*/g,
+      (_, op) => ` ${{ "-": "−", "*": "×" }[op] ?? op} `,
+    )
+    .trim();
+}

@@ -27,6 +27,7 @@ import {
   nodesOf,
   copyText,
   fromReport,
+  tidyExpr,
 } from "../src/viewer/client/lineage.js";
 
 const G = {
@@ -787,6 +788,23 @@ describe("stepSql", () => {
   });
 });
 
+describe("tidyExpr", () => {
+  it("spaces arithmetic and writes − and ×", () => {
+    assert.equal(tidyExpr("(f1-f2)/f2"), "(f1 − f2) / f2");
+    assert.equal(tidyExpr("f1*100"), "f1 × 100");
+    assert.equal(tidyExpr("f1 + f2"), "f1 + f2");
+  });
+
+  it("tidies arithmetic inside a function call", () => {
+    assert.equal(tidyExpr("round(f1*100, 1)"), "round(f1 × 100, 1)");
+  });
+
+  it("shows any other SQL as written", () => {
+    const sql = "case when f1 > f2 then 'up-tick' else f2 * 2 end";
+    assert.equal(tidyExpr(sql), sql);
+  });
+});
+
 describe("lineage: fixtures", () => {
   it("lays out clean's 11.8% from q1 at step 1 up to f3", () => {
     assert.deepEqual(beats(fx("clean").graph, "f3"), [
@@ -851,17 +869,22 @@ describe("lineage: fixtures", () => {
       html: "Dates aren't pinned. No columns are recorded. The SQL doesn't use the recorded period as fixed dates. It uses <code>current_date</code>, so re-running it gives different numbers.",
     });
   });
-  it("lists broken's 10 errors first", () => {
+  it("lists broken's 9 errors first", () => {
     const d = fx("broken");
     assert.equal(d.summary.issues.length, 10);
     assert.deepEqual(
       items("broken").map((i) => i.tag),
-      d.summary.issues.map((i) => `${i.code} · Error`),
+      d.summary.issues
+        .filter((i) => i.severity === "error")
+        .map((i) => `${i.code} · Error`),
     );
-    assert.deepEqual(needsAttention(d.summary).notes, []);
+    assert.deepEqual(
+      needsAttention(d.summary).notes.map((n) => `${n.code} ${n.node}`),
+      ["S8 f5"],
+    );
     assert.equal(
       overview(d).lede,
-      "This report does not pass check: 10 errors.",
+      "This report does not pass check: 9 errors.",
     );
   });
   it("turns off every copy button on broken", async () => {

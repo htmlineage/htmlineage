@@ -12,7 +12,7 @@
  * reviewer would want is missing.
  */
 
-import { ExprError, parseExpr } from "./expr.js";
+import { exprProblem } from "./expr.js";
 import { expectedPrefix, ID_PATTERN } from "./ids.js";
 
 export const FORMAT_MAJOR = 1;
@@ -28,7 +28,7 @@ export const RULES = {
   S5: { severity: "warning", title: "unknown field" },
   S6: { severity: "warning", title: "node id prefix does not match its step" },
   S7: { severity: "warning", title: "descriptive field is missing" },
-  S8: { severity: "error", title: "figure expression cannot be read" },
+  S8: { severity: "warning", title: "figure expression cannot be read" },
   C4: {
     severity: "error",
     title: "node has no parents and is not marked ungrounded",
@@ -353,7 +353,7 @@ function checkFigure(id, node, may, want, report) {
   may("display", isString, "the text exactly as shown on the page");
   may("label", isString, "a string");
   may("sql", isNonEmptyString, "a query returning one cell");
-  may("expr", isNonEmptyString, "arithmetic over figure ids");
+  may("expr", isNonEmptyString, "a SQL expression over figure ids");
 
   const hasSql = node.sql !== undefined;
   const hasExpr = node.expr !== undefined;
@@ -374,15 +374,13 @@ function checkFigure(id, node, may, want, report) {
   }
 
   if (hasExpr && isNonEmptyString(node.expr)) {
-    try {
-      parseExpr(node.expr);
-    } catch (error) {
-      if (!(error instanceof ExprError)) throw error;
+    const problem = exprProblem(node.expr);
+    if (problem) {
       report(
         "S8",
         id,
         "expr",
-        `cannot read \`${node.expr}\` at character ${error.position + 1}: ${error.message}`,
+        `cannot read \`${node.expr}\` at character ${problem.position + 1}: ${problem.message}`,
       );
     }
   }

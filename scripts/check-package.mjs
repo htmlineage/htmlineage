@@ -19,7 +19,6 @@ const REQUIRED = [
   "src/meta.js",
   "src/commands/index.js",
   "src/commands/check.js",
-  "src/commands/source.js",
   "src/commands/sql.js",
   "src/commands/view.js",
   "src/graph/duplicates.js",

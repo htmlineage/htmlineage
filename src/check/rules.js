@@ -5,7 +5,7 @@
  */
 
 import { bareNumbers } from "../graph/numbers.js";
-import { ExprError, exprRefs } from "../graph/expr.js";
+import { exprProblem, exprRefs } from "../graph/expr.js";
 import { STEPS } from "../graph/schema.js";
 import { checkSqlStyle, dateFunctions, maskSql } from "../sql/style.js";
 
@@ -204,12 +204,8 @@ function checkC5(nodes, has, node, report) {
       if (hasSql === hasExpr) continue;
       if (hasExpr) {
         if (typeof n.expr !== "string") continue;
-        try {
-          exprIds = exprRefs(n.expr);
-        } catch (error) {
-          if (!(error instanceof ExprError)) throw error;
-          continue;
-        }
+        if (exprProblem(n.expr)) continue;
+        exprIds = exprRefs(n.expr, Object.keys(nodes));
       }
     }
 
@@ -231,23 +227,21 @@ function checkC5(nodes, has, node, report) {
       let ok;
       let message;
       if (step === "view") {
-        ok =
-          knownParents.every((p) => p.step === "source") ||
-          (knownParents.length === 1 && knownParents[0].step === "view");
-        message = "a view rests on sources, or on exactly one view";
+        ok = knownParents.every(
+          (p) => p.step === "source" || p.step === "view",
+        );
+        message = "a view rests on sources and views only";
       } else if (step === "figure" && exprIds === null) {
-        ok = knownParents.length === 1 && knownParents[0].step === "view";
-        message = "a figure with `sql` rests on exactly one view or source";
-        if (knownParents.length === 1 && knownParents[0].step === "source")
-          ok = true;
+        ok = knownParents.every(
+          (p) => p.step === "source" || p.step === "view",
+        );
+        message = "a figure with `sql` rests on sources and views only";
       } else if (step === "figure") {
         ok = knownParents.every((p) => p.step === "figure");
         message = "a figure with `expr` rests on figures only";
       } else {
-        ok = knownParents.every(
-          (p) => p.step === "figure" || p.step === "insight",
-        );
-        message = "an insight rests on figures and insights only";
+        ok = knownParents.every((p) => p.step !== "source");
+        message = "an insight rests on views, figures and insights only";
       }
       if (!ok) parts.push(message);
     }

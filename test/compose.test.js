@@ -153,48 +153,74 @@ describe("CTE bodies", () => {
 });
 
 describe("expressions", () => {
-  it("compiles an expression from its tree, reading each figure through a subquery", () => {
+  it("passes an expression through as written, each reference read through a subquery", () => {
     assert.equal(
       compose(G({ q1, f1, f2, f3: calc("(f1-f2)/f2", "Change") })),
-      `${TWO}\nunion all\nselect 'f3', 'Change', cast(((select value from f1) - (select value from f2)) / (select value from f2) as varchar)`,
+      `${TWO}\nunion all\nselect 'f3', 'Change', cast(((select value from f1)-(select value from f2))/(select value from f2) as varchar)`,
     );
   });
 
-  it("keeps precedence by wrapping every operation inside another", () => {
-    assert.equal(
-      compose(
-        G({ q1, f1, f2, f3: calc("f1 + f2 * f1"), f4: calc("f1 - f2 - f1") }),
-      ),
-      `${TWO}\nunion all\nselect 'f3', 'Calc', cast((select value from f1) + ((select value from f2) * (select value from f1)) as varchar)\nunion all\nselect 'f4', 'Calc', cast(((select value from f1) - (select value from f2)) - (select value from f1) as varchar)`,
-    );
-  });
-
-  it("compiles number literals, abs and round", () => {
+  it("passes SQL beyond arithmetic through", () => {
     assert.equal(
       compose(
         G({
           q1,
           f1,
           f2,
-          f3: calc("round(abs(f1 - f2) * 100, 1)"),
-          f4: calc("f1 * .5"),
+          f3: calc("case when f1 > f2 then f1 else f2 end"),
         }),
       ),
-      `${TWO}\nunion all\nselect 'f3', 'Calc', cast(round(abs((select value from f1) - (select value from f2)) * 100, 1) as varchar)\nunion all\nselect 'f4', 'Calc', cast((select value from f1) * 0.5 as varchar)`,
+      `${TWO}\nunion all\nselect 'f3', 'Calc', cast(case when (select value from f1) > (select value from f2) then (select value from f1) else (select value from f2) end as varchar)`,
     );
   });
 
-  it("compiles negation", () => {
+  it("leaves quoted text and words that name no node alone", () => {
     assert.equal(
-      compose(G({ q1, f1, f2, f3: calc("-f1"), f4: calc("-(f1 + f2)") })),
-      `${TWO}\nunion all\nselect 'f3', 'Calc', cast(-(select value from f1) as varchar)\nunion all\nselect 'f4', 'Calc', cast(-((select value from f1) + (select value from f2)) as varchar)`,
+      compose(
+        G({
+          q1,
+          f1,
+          f2,
+          f3: calc("case when f1 > scale then 'f2' else f2 end"),
+        }),
+      ),
+      `${TWO}\nunion all\nselect 'f3', 'Calc', cast(case when (select value from f1) > scale then 'f2' else (select value from f2) end as varchar)`,
     );
   });
 
-  it("never writes two minus signs together, which would start a comment", () => {
+  it("leaves words inside double quotes alone", () => {
     assert.equal(
-      compose(G({ q1, f1, f2, f3: calc("- -f1") })),
-      `${TWO}\nunion all\nselect 'f3', 'Calc', cast(-(-(select value from f1)) as varchar)`,
+      compose(
+        G({
+          q1,
+          f1,
+          f2,
+          f3: calc('case when f1 > 0 then "f2" else f2 end'),
+        }),
+      ),
+      `${TWO}\nunion all\nselect 'f3', 'Calc', cast(case when (select value from f1) > 0 then "f2" else (select value from f2) end as varchar)`,
+    );
+  });
+
+  it("gives an expression it cannot read a null value and lists it", () => {
+    assert.equal(
+      compose(G({ q1, f1, f2, f3: calc("(f1 - f2", "Change") })),
+      `${TWO}\nunion all\nselect 'f3', 'Change', null${NOT_COVERED}\n-- f3 expr cannot be read`,
+    );
+  });
+
+  it("gives an expression over an unreadable one a null value", () => {
+    assert.equal(
+      compose(
+        G({
+          q1,
+          f1,
+          f2,
+          f3: calc("(f1 - f2", "Change"),
+          f4: { step: "figure", from: ["f3"], expr: "f3 * 2", label: "Calc" },
+        }),
+      ),
+      `${TWO}\nunion all\nselect 'f3', 'Change', null\nunion all\nselect 'f4', 'Calc', null${NOT_COVERED}\n-- f3 expr cannot be read`,
     );
   });
 
@@ -520,6 +546,77 @@ describe("composeSql: one node", () => {
       one(graph, "v1"),
       "-- r.html (v1)\nwith\nq1 as (\n    select amount from sales\n),\nv1 as (\n    select amount from q1 where amount > 0\n)\nselect * from v1",
     );
+  });
+
+  describe("an insight over a view", () => {
+    const v1 = {
+      step: "view",
+      from: ["q1"],
+      sql: "select amount from q1 where amount > 0",
+    };
+    const V1_SCRIPT = (id) =>
+      `-- r.html (${id})\nwith\nq1 as (\n    select amount from sales\n),\nv1 as (\n    select amount from q1 where amount > 0\n)\nselect * from v1`;
+
+    it("ends an insight over a view by selecting the view", () => {
+      const graph = G({
+        q1,
+        v1,
+        i1: { step: "insight", from: ["v1"], text: "Sales are up." },
+      });
+      assert.equal(one(graph, "i1"), V1_SCRIPT("i1"));
+    });
+
+    it("finds the view through other insights", () => {
+      const graph = G({
+        q1,
+        v1,
+        i1: { step: "insight", from: ["v1"], text: "Sales are up." },
+        i2: { step: "insight", from: ["i1"], text: "Still up." },
+      });
+      assert.equal(one(graph, "i2"), V1_SCRIPT("i2"));
+    });
+
+    it("ends in figure rows when the insight also rests on a figure", () => {
+      const graph = G({
+        q1,
+        v1,
+        f1,
+        i1: { step: "insight", from: ["v1", "f1"], text: "t" },
+      });
+      assert.equal(
+        one(graph, "i1"),
+        `-- r.html (i1)\nwith\nq1 as (\n    select amount from sales\n),\nv1 as (\n    select amount from q1 where amount > 0\n),\n${F1_CTE}\n${F1_ROW}`,
+      );
+    });
+
+    it("selects the first view when the insight rests on several", () => {
+      const graph = G({
+        q1,
+        v1,
+        v2: {
+          step: "view",
+          from: ["q1"],
+          sql: "select count(amount) as orders from q1",
+        },
+        i1: { step: "insight", from: ["v1", "v2"], text: "t" },
+      });
+      assert.equal(
+        one(graph, "i1"),
+        "-- r.html (i1)\nwith\nq1 as (\n    select amount from sales\n),\nv1 as (\n    select amount from q1 where amount > 0\n),\nv2 as (\n    select count(amount) as orders from q1\n)\nselect * from v1",
+      );
+    });
+
+    it("says why there is nothing to compose for an insight over a view over an external source", () => {
+      const graph = G({
+        x1,
+        v1: { step: "view", from: ["x1"], sql: "select target from x1" },
+        i1: { step: "insight", from: ["v1"], text: "t" },
+      });
+      assert.equal(
+        one(graph, "i1"),
+        NOTHING("i1", "rests on external x1") + NOT_COVERED + X1_LINE,
+      );
+    });
   });
 
   it("ends a source's script by selecting the source", () => {

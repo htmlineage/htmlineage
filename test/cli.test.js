@@ -7,10 +7,10 @@ import { packageMeta } from "../src/meta.js";
 import { runCli } from "./helpers.js";
 
 describe("command registry", () => {
-  it("exposes the four commands", () => {
+  it("exposes the three commands", () => {
     assert.deepEqual(
       commands.map((c) => c.name),
-      ["source", "check", "view", "sql"],
+      ["check", "view", "sql"],
     );
   });
 

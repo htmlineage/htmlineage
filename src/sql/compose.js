@@ -2,7 +2,7 @@
  * Compose a lineage graph into one SQL script. Pure: no file I/O.
  */
 
-import { exprRefs, parseExpr } from "../graph/expr.js";
+import { exprProblem, exprRefs } from "../graph/expr.js";
 import { traceGraph } from "../graph/trace.js";
 
 /** Text collapsed to one line, so it cannot end a `--` comment early. */
@@ -24,29 +24,21 @@ const indent = (sql) =>
     .replace(/\s*;$/, "")
     .replace(/^(?=.)/gm, "    ");
 
-/** An expression compiler that reads figures from `nodes`. */
+/**
+ * An expression compiler that reads figures from `nodes`. The text is copied
+ * as written; only each word that names a node changes.
+ */
 function compiler(nodes) {
-  // An operation inside another is wrapped; a negation inside a negation too,
-  // so `--` never appears (it would start a SQL comment).
-  const wrapped = (tree) =>
-    tree.type === "binary" || tree.type === "neg"
-      ? `(${compile(tree)})`
-      : compile(tree);
-
-  function compile(tree) {
-    if (tree.type === "ref") {
-      const { expr } = nodes[tree.id];
-      return expr
-        ? `(${compile(parseExpr(expr))})`
-        : `(select value from ${tree.id})`;
-    }
-    if (tree.type === "number") return String(tree.value);
-    if (tree.type === "call") {
-      return `${tree.name}(${tree.args.map(compile).join(", ")})`;
-    }
-    if (tree.type === "neg") return `-${wrapped(tree.arg)}`;
-    return `${wrapped(tree.left)} ${tree.op} ${wrapped(tree.right)}`;
-  }
+  const ids = new Set(Object.keys(nodes));
+  const compile = (expr) =>
+    expr.replace(
+      /('[^']*'|"[^"]*")|([A-Za-z_][A-Za-z0-9_]*)/g,
+      (match, quoted, word) => {
+        if (quoted || !ids.has(word)) return match;
+        const { expr: inner } = nodes[word];
+        return inner ? `(${compile(inner)})` : `(select value from ${word})`;
+      },
+    );
   return compile;
 }
 
@@ -84,8 +76,11 @@ export function composeSql(graph, options) {
   // A sql source whose query was never recorded cannot run.
   const noSql = (node) =>
     node.step === "source" && node.kind === "sql" && node.sql === undefined;
+  const unreadable = (node) =>
+    node.expr !== undefined && exprProblem(node.expr) !== null;
   const notCovered = entries.flatMap(([id, node]) => {
     if (noSql(node)) return [`-- ${id} has no sql`];
+    if (unreadable(node)) return [`-- ${id} expr cannot be read`];
     if (node.kind === "external") {
       const ref = oneLine(node.ref ?? "");
       return [ref ? `-- ${id} external: ${ref}` : `-- ${id} external`];
@@ -116,9 +111,26 @@ export function composeSql(graph, options) {
   const runs = (id) =>
     states.get(id) === "full" && sourcesBelow(id, noSql).length === 0;
   const target = graph.nodes[options.id];
-  // A source or view with SQL to run ends in a select of itself.
-  const selectsTarget =
-    (target?.step === "source" || target?.step === "view") && runs(options.id);
+  // The first view below an insight, looking through insights only.
+  const viewBelow = (id) => {
+    const node = graph.nodes[id];
+    if (node.step === "view") return id;
+    if (node.step !== "insight") return null;
+    for (const parent of node.from) {
+      const found = viewBelow(parent);
+      if (found !== null) return found;
+    }
+    return null;
+  };
+  // A source or view with SQL to run ends in a select of itself; so does an
+  // insight that rests on no figures, through the first view below it.
+  const selected =
+    target?.step === "source" || target?.step === "view"
+      ? options.id
+      : target?.step === "insight" && figures.length === 0
+        ? viewBelow(options.id)
+        : null;
+  const selectsTarget = selected !== null && runs(selected);
   if (figures.length === 0 && !selectsTarget) {
     const { id } = options;
     const externals = id === undefined ? [] : externalsBelow(id);
@@ -178,11 +190,12 @@ export function composeSql(graph, options) {
   const isNull = (id) =>
     graph.nodes[id].ungrounded === true ||
     unread.has(id) ||
+    unreadable(graph.nodes[id]) ||
     (graph.nodes[id].expr !== undefined &&
-      exprRefs(graph.nodes[id].expr).some(isNull));
+      exprRefs(graph.nodes[id].expr, Object.keys(graph.nodes)).some(isNull));
   const rows = figures.map(([id, node], i) => {
     const reading = node.expr
-      ? compile(parseExpr(node.expr))
+      ? compile(node.expr)
       : `(select value from ${id})`;
     const [figure, label, value] = [
       `'${id}'`,
@@ -194,7 +207,7 @@ export function composeSql(graph, options) {
       : `select ${figure}, ${label}, ${value}`;
   });
   const final = selectsTarget
-    ? `select * from ${options.id}`
+    ? `select * from ${selected}`
     : rows.join("\nunion all\n");
   const withClause = ctes.length > 0 ? `with\n${ctes.join(",\n")}\n` : "";
   return `-- ${header}\n${withClause}${final}${tail}`;

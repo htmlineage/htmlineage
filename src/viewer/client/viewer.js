@@ -14,6 +14,7 @@ import {
   reportSql,
   reviewerWording,
   stepSql,
+  tidyExpr,
   title,
 } from "./lineage.js";
 
@@ -207,14 +208,8 @@ function body(id, isTop) {
   }
   if (n.step === "figure") {
     if (n.expr) {
-      const pretty = (s) =>
-        s
-          .replace(/\s*-\s*/g, " − ")
-          .replace(/\s*\*\s*/g, " × ")
-          .replace(/\s*\/\s*/g, " / ")
-          .replace(/\s*\+\s*/g, " + ");
       const tokens = (fn) =>
-        pretty(n.expr)
+        tidyExpr(n.expr)
           .split(/\b([a-zA-Z]\w*)\b/)
           .map((t, k) => (k % 2 && S.nodes[t] ? fn(t) : esc(t)))
           .join("");

@@ -131,7 +131,7 @@ describe("sql: schema errors", () => {
     graph.nodes.f2 = {
       step: "figure",
       from: ["f1"],
-      expr: "f1 +",
+      expr: 5,
       label: "Broken",
     };
     const html = R_F1.replace(
