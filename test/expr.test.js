@@ -1,106 +1,96 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { ExprError, exprRefs, parseExpr } from "../src/graph/expr.js";
+import { exprProblem, exprRefs } from "../src/graph/expr.js";
 
-const ref = (id) => ({ type: "ref", id });
-const num = (value) => ({ type: "number", value });
+describe("exprProblem", () => {
+  it("reads any SQL text whose brackets and quotes close", () => {
+    for (const source of [
+      "(f1 - f2) / f2",
+      "case when f1 > f2 then f1 else f2 end",
+      "greatest(f1, 0) * 100",
+      "f1 ^ 2",
+      "rank_of(f1)",
+      "F1 + f2",
+    ]) {
+      assert.equal(exprProblem(source), null, source);
+    }
+  });
 
-describe("parseExpr", () => {
-  it("reads the percentage-change shape", () => {
-    assert.deepEqual(parseExpr("(f1 - f2) / f2"), {
-      type: "binary",
-      op: "/",
-      left: { type: "binary", op: "-", left: ref("f1"), right: ref("f2") },
-      right: ref("f2"),
+  it("points at a ( that is never closed", () => {
+    assert.deepEqual(exprProblem("(f1 + f2"), {
+      message: "`(` is never closed",
+      position: 0,
+    });
+    assert.deepEqual(exprProblem("round((f1 + f2, 1)"), {
+      message: "`(` is never closed",
+      position: 5,
     });
   });
 
-  it("binds * and / tighter than + and -", () => {
-    assert.deepEqual(parseExpr("f1 + f2 * 100"), {
-      type: "binary",
-      op: "+",
-      left: ref("f1"),
-      right: { type: "binary", op: "*", left: ref("f2"), right: num(100) },
+  it("points at a ) with no matching (", () => {
+    assert.deepEqual(exprProblem("f1 + f2)"), {
+      message: "`)` has no matching `(`",
+      position: 7,
     });
   });
 
-  it("is left-associative", () => {
-    assert.deepEqual(parseExpr("f1 - f2 - f3"), {
-      type: "binary",
-      op: "-",
-      left: { type: "binary", op: "-", left: ref("f1"), right: ref("f2") },
-      right: ref("f3"),
+  it("points at a single quote that is never closed", () => {
+    assert.deepEqual(exprProblem("case when f1 > 0 then 'up end"), {
+      message: "`'` is never closed",
+      position: 22,
     });
   });
 
-  it("reads unary minus, decimals and whitespace-free input", () => {
-    assert.deepEqual(parseExpr("-f1*.5"), {
-      type: "binary",
-      op: "*",
-      left: { type: "neg", arg: ref("f1") },
-      right: num(0.5),
+  it("reads brackets and doubled quotes inside a string as text", () => {
+    for (const source of [
+      "case when f1 > 0 then ')' end",
+      "case when f1 > 0 then 'it''s (' end",
+    ]) {
+      assert.equal(exprProblem(source), null, source);
+    }
+  });
+
+  it("points at a double quote that is never closed", () => {
+    assert.deepEqual(exprProblem('"f1 + f2'), {
+      message: '`"` is never closed',
+      position: 0,
     });
   });
 
-  it("reads abs and round with optional places", () => {
-    assert.deepEqual(parseExpr("round(abs(f1 - f2), 3)"), {
-      type: "call",
-      name: "round",
-      args: [
-        {
-          type: "call",
-          name: "abs",
-          args: [
-            { type: "binary", op: "-", left: ref("f1"), right: ref("f2") },
-          ],
-        },
-        num(3),
-      ],
+  it("points at a comment and sends the note to label", () => {
+    assert.deepEqual(exprProblem("f1 * 2 -- doubled"), {
+      message: "`--` starts a comment; put notes in the node's `label`",
+      position: 7,
     });
-    assert.equal(parseExpr("round(f1)").args.length, 1);
-  });
-
-  const rejects = {
-    "an operator outside the language": ["f1 ^ 2", /unexpected `\^`/],
-    "the dropped rank_of": ["rank_of(f1)", /unknown function `rank_of`/],
-    "an uppercase id": ["F1 + f2", /not a node id/],
-    "an empty string": ["   ", /empty/],
-    "a dangling operator": ["f1 +", /ends too early/],
-    "an unclosed paren": ["(f1 + f2", /expected `\)`/],
-    "two operands in a row": ["f1 f2", /unexpected `f2`/],
-    "abs with two arguments": ["abs(f1, f2)", /takes 1 argument, got 2/],
-    "round with three arguments": ["round(f1, 1, 2)", /takes 1 or 2 arguments/],
-    "round places that are not a literal": ["round(f1, f2)", /whole-number/],
-    "fractional round places": ["round(f1, 1.5)", /whole-number/],
-  };
-  for (const [what, [source, message]] of Object.entries(rejects)) {
-    it(`rejects ${what}`, () => {
-      assert.throws(
-        () => parseExpr(source),
-        (error) => error instanceof ExprError && message.test(error.message),
-      );
+    assert.deepEqual(exprProblem("f1 /* x */ * 2"), {
+      message: "`/*` starts a comment; put notes in the node's `label`",
+      position: 3,
     });
-  }
-
-  it("points at the offending character", () => {
-    assert.throws(
-      () => parseExpr("f1 ^ 2"),
-      (error) => error.position === 3,
-    );
+    assert.equal(exprProblem("case when f1 > 0 then '--' end"), null);
   });
 });
 
 describe("exprRefs", () => {
-  it("lists each referenced id once, in order", () => {
-    assert.deepEqual(exprRefs("(f3 - f1) / f1 + round(f2, 1)"), [
-      "f3",
-      "f1",
-      "f2",
-    ]);
+  it("lists each node named, once, in first-seen order", () => {
+    assert.deepEqual(exprRefs("(f1 - f2) / f2", ["f1", "f2"]), ["f1", "f2"]);
   });
 
-  it("returns nothing for a constant", () => {
-    assert.deepEqual(exprRefs("100 * 2"), []);
+  it("skips words that name no node", () => {
+    assert.deepEqual(
+      exprRefs("greatest(f1, scale) * F2 + f1_rate", ["f1", "f2"]),
+      ["f1"],
+    );
+  });
+
+  it("skips a function call whose name matches a node", () => {
+    assert.deepEqual(exprRefs("f1(f2) + f1 (3)", ["f1", "f2"]), ["f2"]);
+  });
+
+  it("skips words inside quotes", () => {
+    assert.deepEqual(
+      exprRefs(`case when f1 > 0 then 'f2' else "f2" end`, ["f1", "f2"]),
+      ["f1"],
+    );
   });
 });

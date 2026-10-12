@@ -7,7 +7,7 @@ tested against them. If one of them is awkward to write, the format is wrong.
 | -------- | ------------------------ | ------------------------------------------------- |
 | `clean`  | embedded in the HTML     | The happy path: everything traces, nothing fires |
 | `messy`  | `.trailline/<stem>.json` | Every warning, no errors                         |
-| `broken` | `.trailline/<stem>.json` | Every error                                      |
+| `broken` | `.trailline/<stem>.json` | Every error, and S8                              |
 
 Each folder has an `expected.json`: the issues `trailline check` must report,
 as `{ code, severity, node }`. Tests for a module compare against the subset

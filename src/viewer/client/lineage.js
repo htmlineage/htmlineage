@@ -341,3 +341,40 @@ export function fromReport(data, message) {
   }
   return null;
 }
+
+/** Whether an expression is only numbers, ids, brackets and + - * /. */
+export const isArithmetic = (expr) =>
+  /^[\w\s.+\-*/()]*$/.test(expr) && !/\w\s*\(/.test(expr);
+
+/**
+ * An expression for the formula line: plain arithmetic is spaced and written
+ * with − and ×; any other SQL is shown as written. The sign in 1e-3 stays put.
+ */
+export function tidyExpr(expr) {
+  if (!/^[\w\s.+\-*/(),]*$/.test(expr)) return expr;
+  return expr
+    .replace(
+      /\s*([*/]|(?<!\b\d+(?:\.\d*)?[eE])[-+])\s*/g,
+      (_, op) => ` ${{ "-": "−", "*": "×" }[op] ?? op} `,
+    )
+    .trim();
+}
+
+/**
+ * The tidied expression as { id } and { text } parts, for the formula line.
+ * Words inside quotes and function names stay text, even when `isId` says yes.
+ */
+export function exprParts(expr, isId) {
+  const parts = [];
+  const pieces = tidyExpr(expr).split(
+    /('[^']*'|"[^"]*"|\b[A-Za-z_]\w*\b(?!\s*\())/,
+  );
+  for (const [k, t] of pieces.entries()) {
+    const last = parts.at(-1);
+    if (k % 2 && isId(t)) parts.push({ id: t });
+    else if (!t) continue;
+    else if (last?.text !== undefined) last.text += t;
+    else parts.push({ text: t });
+  }
+  return parts;
+}

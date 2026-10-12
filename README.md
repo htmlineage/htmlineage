@@ -48,13 +48,13 @@ Serves a two-pane page on `localhost`: the report on the left, the lineage of wh
 
 A report's graph is a JSON object with a `nodes` map. Each node is one of four steps:
 
-| Step        | Id  | What it is                                                         |
-| ----------- | --- | ------------------------------------------------------------------ |
-| **source**  | `q` | One wide query per dataset, with a pinned date range               |
-|             | `x` | An external source Trailline cannot see inside (a CSV, a document) |
-| **view**    | `v` | A `select` over sources or views, shown as a table or chart        |
-| **figure**  | `f` | A single value picked from a view, or arithmetic over figures      |
-| **insight** | `i` | A claim resting on figures, or flagged as ungrounded               |
+| Step        | Id  | What it is                                                              |
+| ----------- | --- | ----------------------------------------------------------------------- |
+| **source**  | `q` | One wide query per dataset, with a pinned date range                    |
+|             | `x` | An external source Trailline cannot see inside (a CSV, a document)      |
+| **view**    | `v` | A `select` over sources or views, shown as a table or chart             |
+| **figure**  | `f` | A single value picked from a view, or a SQL expression over figures     |
+| **insight** | `i` | A claim resting on views, figures or insights, or flagged as ungrounded |
 
 Elements on the page point at nodes:
 

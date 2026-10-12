@@ -60,7 +60,7 @@
     "f5": {
       "step": "figure",
       "from": ["f1"],
-      "expr": "f1 ^ 2",
+      "expr": "(f1 * f1",
       "value": 0.0023,
       "display": "0.23%",
       "label": "Monthly churn, squared"
@@ -72,7 +72,7 @@
     },
     "i2": {
       "step": "insight",
-      "from": ["v1"],
+      "from": ["q1"],
       "text": "Every plan churned less in August than it did in July."
     },
     "i3": {

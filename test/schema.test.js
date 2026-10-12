@@ -301,13 +301,48 @@ describe("views, figures, insights", () => {
     );
   });
 
-  it("S8: an expression outside the language", () => {
+  it("accepts a SQL expression outside plain arithmetic", () => {
+    const base = without(figure, "sql");
+    assert.deepEqual(
+      validateGraph(
+        graphOf({
+          f1: { ...base, from: ["f2"], expr: "greatest(f2, 0) * 100" },
+        }),
+      ),
+      [],
+    );
+  });
+
+  it("S8: warns on an expression it cannot read", () => {
+    const base = without(figure, "sql");
+    const issueFor = (expr) =>
+      validateGraph(graphOf({ f1: { ...base, from: ["f2"], expr } }));
+    assert.deepEqual(issueFor("(f2 + 1"), [
+      {
+        code: "S8",
+        severity: "warning",
+        node: "f1",
+        field: "expr",
+        message: "cannot read `(f2 + 1` at character 1: `(` is never closed",
+      },
+    ]);
+    assert.deepEqual(issueFor("f2 * 2 -- doubled").map(key), ["S8 warning f1"]);
+    assert.equal(
+      issueFor("f2 * 2 -- doubled")[0].message,
+      "cannot read `f2 * 2 -- doubled` at character 8: `--` starts a comment; put notes in the node's `label`",
+    );
+  });
+
+  it("describes expr as SQL when it is not a string", () => {
     const base = without(figure, "sql");
     const issues = validateGraph(
-      graphOf({ f1: { ...base, from: ["f2"], expr: "rank_of(f2)" } }),
+      graphOf({ f1: { ...base, from: ["f2"], expr: 5 } }),
     );
-    assert.deepEqual(issues.map(key), ["S8 error f1"]);
-    assert.match(issues[0].message, /unknown function `rank_of`/);
+    assert.deepEqual(issues.map(key), ["S4 error f1"]);
+    assert.equal(
+      issues[0].message,
+      "`expr` must be a SQL expression over figure ids",
+    );
   });
 
   it("accepts a string value and a null value", () => {

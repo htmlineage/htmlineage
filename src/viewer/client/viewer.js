@@ -2,6 +2,8 @@
 // source up. All the logic with no page in it is in lineage.js; this file is
 // the DOM, the events, the report frame and the clipboard.
 import {
+  exprParts,
+  isArithmetic,
   beats,
   chainSql,
   copyText,
@@ -207,18 +209,11 @@ function body(id, isTop) {
   }
   if (n.step === "figure") {
     if (n.expr) {
-      const pretty = (s) =>
-        s
-          .replace(/\s*-\s*/g, " − ")
-          .replace(/\s*\*\s*/g, " × ")
-          .replace(/\s*\/\s*/g, " / ")
-          .replace(/\s*\+\s*/g, " + ");
       const tokens = (fn) =>
-        pretty(n.expr)
-          .split(/\b([a-zA-Z]\w*)\b/)
-          .map((t, k) => (k % 2 && S.nodes[t] ? fn(t) : esc(t)))
+        exprParts(n.expr, (t) => Boolean(S.nodes[t]))
+          .map((p) => (p.id ? fn(p.id) : esc(p.text)))
           .join("");
-      h += `<p class="reads">Arithmetic over ${from}.</p>`;
+      h += `<p class="reads">${isArithmetic(n.expr) ? "Arithmetic" : "A SQL expression"} over ${from}.</p>`;
       h += `<div class="formula"><span class="eq"></span><span>${tokens((t) => idBtn(t))}</span><span class="eq">=</span><span>${tokens((t) => esc(val(t)))}</span><span class="eq">=</span><span class="res res-line">${esc(val(id))}</span></div>`;
       return h;
     }

@@ -300,45 +300,122 @@ describe("C3", () => {
   });
 });
 
-const chain = {
-  q1: { step: "source", kind: "sql" },
-  q2: { step: "source", kind: "sql" },
-  v1: { step: "view", from: ["q1", "q2"], sql: "s" },
-  v2: { step: "view", from: ["v1"], sql: "s" },
-  v3: { step: "view", from: ["v1", "q1"], sql: "s" },
-  v4: { step: "view", from: ["v1", "v2"], sql: "s" },
-  v5: { step: "view", from: ["fa"], sql: "s" },
-  fa: { step: "figure", from: ["v1"], sql: "s" },
-  fb: { step: "figure", from: ["v1", "q1"], sql: "s" },
-  fc: { step: "figure", from: ["fa"], sql: "s" },
-  fd: { step: "figure", from: ["fa"], expr: "fa * 2" },
-  fe: { step: "figure", from: ["v1"], expr: "v1 + 1" },
-  ff: { step: "figure", from: ["fa"], expr: "fa + fd" },
-  ia: { step: "insight", from: ["fa", "ib"], text: "t" },
-  ib: { step: "insight", from: ["fd"], text: "t" },
-  ic: { step: "insight", from: ["v1"], text: "t" },
-};
+const c5 = (nodes) => only(checkRules({ nodes }, pageOf([])), "C5");
+const c5Issue = (node, message) => ({
+  code: "C5",
+  severity: "error",
+  node,
+  field: "from",
+  message,
+});
 
 describe("C5", () => {
-  it("checks each step's parents", () => {
-    const issues = only(checkRules({ nodes: chain }, pageOf([])), "C5");
-    assert.deepEqual(
-      issues.map(({ node, message }) => [node, message]),
-      [
-        ["v3", "a view rests on sources, or on exactly one view"],
-        ["v4", "a view rests on sources, or on exactly one view"],
-        ["v5", "a view rests on sources, or on exactly one view"],
-        ["fb", "a figure with `sql` rests on exactly one view or source"],
-        ["fc", "a figure with `sql` rests on exactly one view or source"],
-        ["fe", "a figure with `expr` rests on figures only"],
-        ["ff", "`expr` uses fd, which is not in `from`"],
-        ["ic", "an insight rests on figures and insights only"],
-      ],
-    );
-    for (const issue of issues) {
-      assert.equal(issue.severity, "error");
-      assert.equal(issue.field, "from");
-    }
+  it("lets a view rest on any number of sources and views", () => {
+    const nodes = {
+      q1: { step: "source", kind: "sql" },
+      q2: { step: "source", kind: "sql" },
+      v1: { step: "view", from: ["q1", "q2"], sql: "s" },
+      v2: { step: "view", from: ["v1"], sql: "s" },
+      v3: { step: "view", from: ["v1", "q1"], sql: "s" },
+      v4: { step: "view", from: ["v1", "v2"], sql: "s" },
+    };
+    assert.deepEqual(c5(nodes), []);
+  });
+
+  it("reports a view that rests on a figure", () => {
+    const nodes = {
+      q1: { step: "source", kind: "sql" },
+      v1: { step: "view", from: ["q1"], sql: "s" },
+      fa: { step: "figure", from: ["v1"], sql: "s" },
+      v2: { step: "view", from: ["fa"], sql: "s" },
+    };
+    assert.deepEqual(c5(nodes), [
+      c5Issue("v2", "a view rests on sources and views only"),
+    ]);
+  });
+
+  it("lets a sql figure rest on any number of sources and views", () => {
+    const nodes = {
+      q1: { step: "source", kind: "sql" },
+      v1: { step: "view", from: ["q1"], sql: "s" },
+      v2: { step: "view", from: ["q1"], sql: "s" },
+      fa: { step: "figure", from: ["v1", "v2"], sql: "s" },
+      fb: { step: "figure", from: ["v1", "q1"], sql: "s" },
+    };
+    assert.deepEqual(c5(nodes), []);
+  });
+
+  it("reports a sql figure that rests on a figure", () => {
+    const nodes = {
+      q1: { step: "source", kind: "sql" },
+      v1: { step: "view", from: ["q1"], sql: "s" },
+      v2: { step: "view", from: ["q1"], sql: "s" },
+      fa: { step: "figure", from: ["v1", "v2"], sql: "s" },
+      fb: { step: "figure", from: ["v1", "q1"], sql: "s" },
+      fc: { step: "figure", from: ["fa"], sql: "s" },
+    };
+    assert.deepEqual(c5(nodes), [
+      c5Issue("fc", "a figure with `sql` rests on sources and views only"),
+    ]);
+  });
+
+  it("lets an insight rest on a view", () => {
+    const nodes = {
+      q1: { step: "source", kind: "sql" },
+      v1: { step: "view", from: ["q1"], sql: "s" },
+      fa: { step: "figure", from: ["v1"], sql: "s" },
+      ia: { step: "insight", from: ["v1"], text: "t" },
+      ib: { step: "insight", from: ["v1", "fa", "ia"], text: "t" },
+    };
+    assert.deepEqual(c5(nodes), []);
+  });
+
+  it("reports an insight that rests on a source", () => {
+    const nodes = {
+      q1: { step: "source", kind: "sql" },
+      ia: { step: "insight", from: ["q1"], text: "t" },
+    };
+    assert.deepEqual(c5(nodes), [
+      c5Issue("ia", "an insight rests on views, figures and insights only"),
+    ]);
+  });
+
+  it("reports an expr figure that rests on a view", () => {
+    const nodes = {
+      q1: { step: "source", kind: "sql" },
+      v1: { step: "view", from: ["q1"], sql: "s" },
+      fe: { step: "figure", from: ["v1"], expr: "v1 + 1" },
+    };
+    assert.deepEqual(c5(nodes), [
+      c5Issue("fe", "a figure with `expr` rests on figures only"),
+    ]);
+  });
+
+  it("takes only words that name a node as references", () => {
+    const nodes = {
+      q1: { step: "source", kind: "sql" },
+      v1: { step: "view", from: ["q1"], sql: "s" },
+      fa: { step: "figure", from: ["v1"], sql: "s" },
+      fd: { step: "figure", from: ["fa"], expr: "fa * scale" },
+    };
+    assert.deepEqual(c5(nodes), []);
+  });
+
+  it("reports a node named in an SQL expression but missing from from", () => {
+    const nodes = {
+      q1: { step: "source", kind: "sql" },
+      v1: { step: "view", from: ["q1"], sql: "s" },
+      fa: { step: "figure", from: ["v1"], sql: "s" },
+      fd: { step: "figure", from: ["fa"], expr: "fa * scale" },
+      fe: {
+        step: "figure",
+        from: ["fa"],
+        expr: "case when fa > 0 then fd end",
+      },
+    };
+    assert.deepEqual(c5(nodes), [
+      c5Issue("fe", "`expr` uses fd, which is not in `from`"),
+    ]);
   });
 
   it("skips nodes it cannot read", () => {
@@ -346,7 +423,7 @@ describe("C5", () => {
       q1: { step: "source", kind: "sql" },
       v1: { step: "view", from: ["q1"], sql: "s" },
       fg: { step: "figure", from: ["v1", "q1"], sql: "s", expr: "fa" },
-      fh: { step: "figure", from: ["v1"], expr: "fa ^ 2" },
+      fh: { step: "figure", from: ["v1"], expr: "(fa + fd" },
       fi: { step: "figure", from: ["v1"], ungrounded: true },
       fj: { step: "figure", from: "v1", sql: "s" },
       fk: { step: "figure", from: [], sql: "s" },
@@ -627,7 +704,7 @@ describe("checkRules on fixtures", () => {
     ]);
     assert.equal(
       issues.find((i) => i.code === "C5").message,
-      "an insight rests on figures and insights only",
+      "an insight rests on views, figures and insights only",
     );
     assert.equal(
       issues.find((i) => i.code === "C6").message,
