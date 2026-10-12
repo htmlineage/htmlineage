@@ -27,6 +27,8 @@ import {
   nodesOf,
   copyText,
   fromReport,
+  isArithmetic,
+  exprParts,
   tidyExpr,
 } from "../src/viewer/client/lineage.js";
 
@@ -802,6 +804,47 @@ describe("tidyExpr", () => {
   it("shows any other SQL as written", () => {
     const sql = "case when f1 > f2 then 'up-tick' else f2 * 2 end";
     assert.equal(tidyExpr(sql), sql);
+  });
+
+  it("keeps the sign of an exponent with its number", () => {
+    assert.equal(tidyExpr("f1*1e-3+2.5E+2"), "f1 × 1e-3 + 2.5E+2");
+  });
+});
+
+describe("isArithmetic", () => {
+  it("is true for numbers, ids and + - * / in brackets", () => {
+    assert.equal(isArithmetic("(f1 - f2) / f2 * 100"), true);
+  });
+
+  it("is false for any other SQL", () => {
+    assert.equal(isArithmetic("round(f1, 1)"), false);
+    assert.equal(isArithmetic("case when f1 > 0 then f1 end"), false);
+  });
+});
+
+describe("exprParts", () => {
+  const isId = (t) => t === "f1" || t === "f2";
+
+  it("splits the tidied text into ids and plain text", () => {
+    assert.deepEqual(exprParts("(f1-f2)/f2", isId), [
+      { text: "(" },
+      { id: "f1" },
+      { text: " − " },
+      { id: "f2" },
+      { text: ") / " },
+      { id: "f2" },
+    ]);
+  });
+
+  it("keeps quoted text and function names as plain text", () => {
+    assert.deepEqual(
+      exprParts(`case when f1 > 0 then 'f2' else f2("f1") end`, isId),
+      [
+        { text: "case when " },
+        { id: "f1" },
+        { text: " > 0 then 'f2' else f2(\"f1\") end" },
+      ],
+    );
   });
 });
 

@@ -188,6 +188,13 @@ describe("expressions", () => {
     );
   });
 
+  it("leaves a function call whose name matches a node alone", () => {
+    assert.equal(
+      compose(G({ q1, f1, f2, f3: calc("f1(f2)") })),
+      `${TWO}\nunion all\nselect 'f3', 'Calc', cast(f1((select value from f2)) as varchar)`,
+    );
+  });
+
   it("leaves words inside double quotes alone", () => {
     assert.equal(
       compose(

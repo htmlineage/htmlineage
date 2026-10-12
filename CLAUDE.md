@@ -12,13 +12,13 @@ Pre-development. Name claimed on npm (`trailline@0.0.1` placeholder) and GitHub 
 
 - **Source** — one wide pinned query per dataset (SQL or external)
 - **View** — SELECT over sources/views, shown as tables/charts
-- **Figure** — scalar from a view/source or arithmetic over figures
-- **Insight** — claim resting on figures/insights
+- **Figure** — scalar from a view/source or a SQL expression over figures
+- **Insight** — claim resting on views/figures/insights
 
 **Three deliverables (MVP):**
 
 1. Skill — LLM instructions so lineage falls out of report building
-2. CLI — `npx trailline` with commands: `source`, `check`, `view`, `sql`
+2. CLI — `npx trailline` with commands: `check`, `view`, `sql`
 3. Viewer — local two-pane page (report + lineage), served by CLI
 
 **File format:** Plain `.html` with an inert `<script type="application/trailline+json">` block and `data-trailline` attributes on bound elements.

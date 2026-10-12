@@ -83,6 +83,10 @@ describe("exprRefs", () => {
     );
   });
 
+  it("skips a function call whose name matches a node", () => {
+    assert.deepEqual(exprRefs("f1(f2) + f1 (3)", ["f1", "f2"]), ["f2"]);
+  });
+
   it("skips words inside quotes", () => {
     assert.deepEqual(
       exprRefs(`case when f1 > 0 then 'f2' else "f2" end`, ["f1", "f2"]),

@@ -26,13 +26,14 @@ const indent = (sql) =>
 
 /**
  * An expression compiler that reads figures from `nodes`. The text is copied
- * as written; only each word that names a node changes.
+ * as written; only each word that names a node changes (not quoted text, and
+ * not a function name before `(`).
  */
 function compiler(nodes) {
   const ids = new Set(Object.keys(nodes));
   const compile = (expr) =>
     expr.replace(
-      /('[^']*'|"[^"]*")|([A-Za-z_][A-Za-z0-9_]*)/g,
+      /('[^']*'|"[^"]*")|([A-Za-z_][A-Za-z0-9_]*\b(?!\s*\())/g,
       (match, quoted, word) => {
         if (quoted || !ids.has(word)) return match;
         const { expr: inner } = nodes[word];

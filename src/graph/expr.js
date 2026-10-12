@@ -6,14 +6,14 @@
  */
 
 /**
- * The ids from `ids` that the text names as bare words (not inside quotes),
- * distinct, in first-seen order.
+ * The ids from `ids` that the text names as bare words (not inside quotes,
+ * and not a function name before `(`), distinct, in first-seen order.
  */
 export function exprRefs(source, ids) {
   const known = new Set(ids);
   const seen = new Set();
   const bare = source.replace(/'[^']*'|"[^"]*"/g, " ");
-  for (const [word] of bare.matchAll(/[A-Za-z_][A-Za-z0-9_]*/g)) {
+  for (const [word] of bare.matchAll(/[A-Za-z_][A-Za-z0-9_]*\b(?!\s*\()/g)) {
     if (known.has(word)) seen.add(word);
   }
   return [...seen];
