@@ -2,10 +2,6 @@
 
 Provenance/lineage layer for AI-generated HTML reports. Every number, chart, and claim traces back to the query that produced it.
 
-## Project Status
-
-Pre-development. Name claimed on npm (`trailline@0.0.1` placeholder) and GitHub (`trailline/trailline`). Specs renamed from working name "Anchor" to "Trailline."
-
 ## Architecture
 
 **Four-step lineage model:** `source → view → figure → insight`
@@ -51,11 +47,3 @@ Context (earlier iterations, useful for background):
 - Target warehouse: Snowflake (design partner one)
 - No semantic layer dependency — works over documented marts
 - Claude Code PostToolUse hook for automatic SQL capture
-
-## Development Commands
-
-```bash
-# Not yet set up — placeholder package only
-npm install
-node index.js
-```
