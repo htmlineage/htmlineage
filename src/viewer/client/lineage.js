@@ -1,6 +1,6 @@
 /**
  * The viewer's logic with no page in it: chain layout, trace state, titles,
- * wording, SQL highlighting, the summary and what the copy buttons copy. An
+ * grounding, SQL highlighting, the status bar and what the copy buttons copy. An
  * ES module with no imports, so the page and the tests load the same file.
  */
 
@@ -27,6 +27,215 @@ export function nodesOf(graph) {
 export function nodeState(data, id) {
   if (!data.graph.nodes[id]) return "ungrounded";
   return data.trace[id] || "partial";
+}
+
+/**
+ * Every node under `id`, `id` included, and whether the walk met a cycle or a
+ * missing parent on the way.
+ */
+function underneath(nodes, id) {
+  const seen = new Set();
+  const path = new Set();
+  let broken = false;
+  const walk = (x) => {
+    if (!nodes[x] || path.has(x)) return void (broken = true);
+    if (seen.has(x)) return;
+    seen.add(x);
+    path.add(x);
+    for (const parent of nodes[x].from ?? []) walk(parent);
+    path.delete(x);
+  };
+  walk(id);
+  return { ids: [...seen], broken };
+}
+
+/**
+ * What a node rests on: "sql" when its trace is full, "file" when an external
+ * source is under it, else "none". A cycle, a missing parent or an ungrounded
+ * node with no file under it rests on nothing.
+ * @returns {"sql" | "file" | "none"}
+ */
+export function groundOf(data, id) {
+  const nodes = nodesOf(data.graph);
+  if (!nodes[id]) return "none";
+  if (data.trace[id] === "full") return "sql";
+  if (data.trace[id] === "ungrounded") return "none";
+  const { ids, broken } = underneath(nodes, id);
+  if (broken) return "none";
+  const file = ids.some(
+    (x) => nodes[x].step === "source" && nodes[x].kind === "external",
+  );
+  return file ? "file" : "none";
+}
+
+/**
+ * How much of the report rests on what. Numbers are the figures plus each
+ * bare number check found; claims are the insights.
+ * @returns {{ numbers: { sql: number, file: number, none: number }, claims: { supported: number, unsupported: number } }}
+ */
+export function grounding(data) {
+  const numbers = { sql: 0, file: 0, none: 0 };
+  const claims = { supported: 0, unsupported: 0 };
+  for (const [id, node] of Object.entries(nodesOf(data.graph))) {
+    const ground = groundOf(data, id);
+    if (node.step === "figure") numbers[ground]++;
+    if (node.step === "insight") {
+      claims[ground === "none" ? "unsupported" : "supported"]++;
+    }
+  }
+  numbers.none += data.summary.issues.filter((i) => i.code === "C2").length;
+  return { numbers, claims };
+}
+
+/**
+ * The grounding counts as two plain-text lines, or null for a part with
+ * nothing in it.
+ * @returns {{ numbers: string | null, claims: string | null }}
+ */
+export function headline({ numbers, claims }) {
+  const plural = (n, one, many) => (n === 1 ? one : many);
+  const nTotal = numbers.sql + numbers.file + numbers.none;
+  const cTotal = claims.supported + claims.unsupported;
+  const out = { numbers: null, claims: null };
+  if (nTotal) {
+    out.numbers =
+      numbers.sql === nTotal
+        ? nTotal === 1
+          ? "1 number traces to the warehouse."
+          : `All ${nTotal} numbers trace to the warehouse.`
+        : [
+            `${numbers.sql} of ${nTotal} numbers ${plural(numbers.sql, "traces", "trace")} to the warehouse.`,
+            numbers.file &&
+              `${numbers.file} ${plural(numbers.file, "rests", "rest")} on a file.`,
+            numbers.none &&
+              `${numbers.none} ${plural(numbers.none, "has nothing behind it", "have nothing behind them")}.`,
+          ]
+            .filter(Boolean)
+            .join(" ");
+  }
+  if (cTotal) {
+    out.claims =
+      claims.supported === cTotal
+        ? cTotal === 1
+          ? "1 claim is supported."
+          : `All ${cTotal} claims are supported.`
+        : `${claims.supported} of ${cTotal} claims ${plural(claims.supported, "is", "are")} supported. ${claims.unsupported} ${plural(claims.unsupported, "is", "are")} stated without support.`;
+  }
+  return out;
+}
+
+/**
+ * One row per source: what it is, its period, whether check found its dates
+ * unpinned (a C7), and how many figures rest on it at any depth.
+ * @returns {({ node: string, kind: "sql", name: string | null, period: object | null, pinned: boolean, numbers: number } | { node: string, kind: "external", name: string | null, numbers: number })[]}
+ */
+export function builtOn(data) {
+  const nodes = nodesOf(data.graph);
+  const figures = Object.keys(nodes).filter(
+    (id) => nodes[id].step === "figure",
+  );
+  const unpinned = new Set(
+    data.summary.issues.filter((i) => i.code === "C7").map((i) => i.node),
+  );
+  return Object.entries(nodes)
+    .filter(([, node]) => node.step === "source")
+    .map(([id, node]) => {
+      const numbers = figures.filter((f) =>
+        underneath(nodes, f).ids.includes(id),
+      ).length;
+      if (node.kind !== "sql") {
+        return { node: id, kind: "external", name: node.ref ?? null, numbers };
+      }
+      return {
+        node: id,
+        kind: "sql",
+        name: node.mart ?? null,
+        period: node.period ?? null,
+        pinned: !unpinned.has(id),
+        numbers,
+      };
+    });
+}
+
+/** The rows of `builtOn` for the sources under `id`, `id` included. */
+export function builtFrom(data, id) {
+  const under = underneath(nodesOf(data.graph), id).ids;
+  return builtOn(data).filter((row) => under.includes(row.node));
+}
+
+/** Where the page and the graph differ: one row per C3, in check's order. */
+export function mismatches(data) {
+  return data.summary.issues
+    .filter((i) => i.code === "C3")
+    .map(({ node, message }) => {
+      const read =
+        /^page shows ((?:"[^"]*"(?:, )?)+) but (?:display is "(.*)"|value is (.*))$/.exec(
+          message,
+        );
+      if (!read) return { node, page: [], graph: null };
+      return {
+        node,
+        page: [...read[1].matchAll(/"([^"]*)"/g)].map((m) => m[1]),
+        graph: read[2] ?? read[3],
+      };
+    });
+}
+
+/**
+ * Numbers and claims with nothing behind them: figures, then bare numbers,
+ * then claims.
+ * @returns {{ node: string | null, kind: "figure" | "bare" | "claim", text: string | null }[]}
+ */
+export function untraced(data) {
+  const nodes = Object.entries(nodesOf(data.graph));
+  const none = (step) =>
+    nodes.filter(
+      ([id, node]) => node.step === step && groundOf(data, id) === "none",
+    );
+  const bare = data.summary.issues
+    .filter((i) => i.code === "C2")
+    .map(({ node, message }) => ({
+      node,
+      kind: "bare",
+      text: /^bare number "(.*)" is not/.exec(message)?.[1] ?? message,
+    }));
+  return [
+    ...none("figure").map(([node, n]) => ({
+      node,
+      kind: "figure",
+      text: n.display ?? null,
+    })),
+    ...bare,
+    ...none("insight").map(([node, n]) => ({
+      node,
+      kind: "claim",
+      text: n.text ?? null,
+    })),
+  ];
+}
+
+/**
+ * The status bar's text, every issue for the drawer (errors first), and why
+ * copying is off.
+ * @returns {{ line: string, issues: object[], reason: string | null }}
+ */
+export function checkStatus(data) {
+  const all = data.summary.issues;
+  const errors = all.filter((i) => i.severity === "error");
+  const notes = all.filter((i) => i.severity !== "error");
+  const count = (list, one, many) =>
+    list.length && `${list.length} ${list.length === 1 ? one : many}`;
+  const parts = [
+    count(errors, "error", "errors"),
+    count(notes, "note", "notes"),
+  ];
+  return {
+    line: ["check", ...(all.length ? parts.filter(Boolean) : ["clean"])].join(
+      " · ",
+    ),
+    issues: [...errors, ...notes],
+    reason: data.refused,
+  };
 }
 
 /** A short plain-text name for a node. */
@@ -94,56 +303,6 @@ const escapeHtml = (text) =>
     (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c],
   );
 
-/** Escaped text with `backticked` parts shown as code. */
-const codeify = (text) =>
-  escapeHtml(text).replace(/`([^`]+)`/g, "<code>$1</code>");
-
-/** What one `; `-separated part of a C7 message means. */
-function c7Part(part) {
-  if (part.startsWith("sql source is missing"))
-    return "No columns are recorded.";
-  if (part.startsWith("SQL does not contain")) {
-    return "The SQL doesn't use the recorded period as fixed dates.";
-  }
-  const used = /uses date functions: (.*)/.exec(part);
-  if (!used) return codeify(part);
-  const [, functions] = used;
-  return `It uses <code>${escapeHtml(functions)}</code>, so re-running it gives different numbers.`;
-}
-
-/**
- * One check issue in the reviewer's words.
- * @returns {{ tone: "stop" | "warn" | "note", html: string }}
- */
-export function reviewerWording(issue) {
-  if (issue.severity === "error") {
-    return { tone: "stop", html: codeify(issue.message) };
-  }
-  if (issue.code === "C3") {
-    const read = /page shows "(.*)" but display is "(.*)"/.exec(issue.message);
-    if (!read) return { tone: "stop", html: codeify(issue.message) };
-    const [, page, display] = read;
-    return {
-      tone: "stop",
-      html: `The page shows <b>${escapeHtml(page)}</b>, but the lineage records <b>${escapeHtml(display)}</b>.`,
-    };
-  }
-  if (issue.code === "C2") {
-    const read = /bare number "(.*)"/.exec(issue.message);
-    if (!read) return { tone: "warn", html: codeify(issue.message) };
-    const [, number] = read;
-    return {
-      tone: "warn",
-      html: `<b>${escapeHtml(number)}</b> in this sentence isn't bound to any figure, so it has no lineage.`,
-    };
-  }
-  if (issue.code === "C7") {
-    const parts = issue.message.split("; ").map(c7Part);
-    return { tone: "warn", html: `Dates aren't pinned. ${parts.join(" ")}` };
-  }
-  return { tone: "note", html: `For the builder: ${codeify(issue.message)}` };
-}
-
 const KEYWORDS =
   /^(select|from|where|and|or|not|group|by|order|join|left|inner|on|as|sum|count|avg|min|max|rank|over|partition|desc|asc|limit|between|in|with|union|all|case|when|then|else|end|null|is|distinct|having|dateadd|current_date)$/i;
 
@@ -163,106 +322,6 @@ export function highlightSql(sql) {
       return KEYWORDS.test(token) ? `<span class="kw">${token}</span>` : token;
     })
     .join("");
-}
-
-// The warnings a reviewer can act on, and the name each goes by.
-const REVIEWER_TAGS = {
-  C2: "Number not bound",
-  C3: "Page differs from lineage",
-  C7: "Dates not pinned",
-};
-
-/**
- * What the summary asks the reviewer to look at, and the builder's own notes.
- * @returns {{ items: { node: string, swatch: string, tone: string, tag: string, html: string }[], notes: object[] }}
- */
-export function needsAttention(summary) {
-  const errors = summary.issues
-    .filter((found) => found.severity === "error")
-    .map((found) => ({
-      node: found.node,
-      swatch: "stopw",
-      tone: "stop",
-      tag: `${found.code} · Error`,
-      html: reviewerWording(found).html,
-    }));
-  const items = summary.ungrounded.map(({ node, text }) => ({
-    node,
-    swatch: "ungrounded",
-    tone: "stop",
-    tag: "Nothing behind it",
-    html: escapeHtml(text),
-  }));
-  const notes = [];
-  for (const found of summary.issues) {
-    if (found.severity === "error") continue;
-    if (!(found.code in REVIEWER_TAGS)) {
-      notes.push(found);
-      continue;
-    }
-    const { tone, html } = reviewerWording(found);
-    items.push({
-      node: found.node,
-      swatch: tone === "stop" ? "stopw" : "warn",
-      tone,
-      tag: `${found.code} · ${REVIEWER_TAGS[found.code]}`,
-      html: html.replace("Dates aren't pinned. ", ""),
-    });
-  }
-  items.push(
-    ...summary.external.map(({ node, ref }) => ({
-      node,
-      swatch: "partial",
-      tone: "ext",
-      tag: "External source",
-      html: `${escapeHtml(ref)}. Trailline can't see inside it.`,
-    })),
-  );
-  const rank = { stop: 0, warn: 1, ext: 2 };
-  items.sort((a, b) => rank[a.tone] - rank[b.tone]);
-  return { items: [...errors, ...items], notes };
-}
-
-/**
- * The summary's headline and the line under it, as plain text.
- * @returns {{ lede: string, sub: string }}
- */
-export function overview(data) {
-  if (data.refused !== null) {
-    const errors = data.summary.issues.filter((i) => i.severity === "error");
-    return {
-      lede: `This report does not pass check: ${errors.length} ${errors.length === 1 ? "error" : "errors"}.`,
-      sub: "The lineage shows as far as it goes. Copying SQL is off until the errors are fixed.",
-    };
-  }
-  const states = Object.entries(data.graph.nodes)
-    .filter(([, node]) => node.step === "figure" || node.step === "insight")
-    .map(([id]) => nodeState(data, id));
-  const count = (state) => states.filter((s) => s === state).length;
-  const traced = count("full");
-  if (traced === states.length) {
-    return {
-      lede: `All ${states.length} numbers and claims trace back to SQL.`,
-      sub: "Click any of them in the report to see how it was computed.",
-    };
-  }
-  const external = count("partial");
-  const bare = count("ungrounded");
-  const sub = [];
-  if (external) {
-    sub.push(
-      `${external === 1 ? "1 rests" : `${external} rest`} on an external source.`,
-    );
-  }
-  if (bare) {
-    sub.push(
-      `${bare === 1 ? "1 has" : `${bare} have`} nothing recorded behind ${bare === 1 ? "it" : "them"}.`,
-    );
-  }
-  return {
-    lede: `${traced} of ${states.length} numbers and claims trace back to SQL.`,
-    sub: sub.join(" "),
-  };
 }
 
 /**

@@ -17,10 +17,7 @@ import {
   nodeState,
   title,
   beats,
-  reviewerWording,
   highlightSql,
-  needsAttention,
-  overview,
   reportSql,
   chainSql,
   stepSql,
@@ -30,6 +27,14 @@ import {
   isArithmetic,
   exprParts,
   tidyExpr,
+  groundOf,
+  grounding,
+  headline,
+  builtOn,
+  builtFrom,
+  mismatches,
+  untraced,
+  checkStatus,
 } from "../src/viewer/client/lineage.js";
 
 const G = {
@@ -144,26 +149,9 @@ const data = (over = {}) => ({
 });
 
 const fx = (name) => buildPayload({ reportPath: loadFixture(name).reportPath });
-const items = (name) => needsAttention(fx(name).summary).items;
 
 const REFUSED =
   "r.html does not pass `trailline check`, so no script was composed";
-// Figures f1.. with the given trace states, plus one sql source q1 (never counted).
-const nums = (...states) => {
-  const ids = states.map((_, k) => `f${k + 1}`);
-  return data({
-    graph: {
-      nodes: {
-        q1: { step: "source", kind: "sql" },
-        ...Object.fromEntries(ids.map((id) => [id, { step: "figure" }])),
-      },
-    },
-    trace: {
-      q1: "full",
-      ...Object.fromEntries(ids.map((id, k) => [id, states[k]])),
-    },
-  });
-};
 // Issues as check reports them.
 const issue = (code, node, message, severity = "warning") => ({
   code,
@@ -172,8 +160,486 @@ const issue = (code, node, message, severity = "warning") => ({
   field: null,
   message,
 });
-const C7_MESSY =
-  "sql source is missing `columns`; SQL does not contain the period as literal dates: '2026-08-01', '2026-08-31'; SQL uses date functions: current_date";
+// traceGraph(G), written out.
+const TRACE_G = {
+  q1: "full",
+  q2: "full",
+  x1: "partial",
+  v1: "full",
+  v2: "full",
+  f1: "full",
+  f2: "full",
+  f3: "full",
+  f4: "partial",
+  f5: "full",
+  f6: "full",
+  f7: "partial",
+  i1: "full",
+  i2: "ungrounded",
+};
+// G with its trace; override what a test needs.
+const dg = (over = {}) => data({ trace: TRACE_G, ...over });
+
+describe("groundOf", () => {
+  it("calls an id that is not in the graph none", () => {
+    assert.equal(groundOf(dg(), "f9"), "none");
+  });
+  it("calls anything traced to a sql source sql", () => {
+    assert.equal(groundOf(dg(), "q1"), "sql");
+    assert.equal(groundOf(dg(), "f3"), "sql");
+  });
+  it("calls an external source a file", () => {
+    assert.equal(groundOf(dg(), "x1"), "file");
+  });
+  it("calls a figure on an external source a file", () => {
+    assert.equal(groundOf(dg(), "f4"), "file");
+  });
+  it("finds a file further down a mixed chain", () => {
+    const d = dg({
+      graph: {
+        nodes: {
+          ...G.nodes,
+          f8: { step: "figure", from: ["f1", "f4"], expr: "f1 + f4" },
+        },
+      },
+      trace: { ...TRACE_G, f8: "partial" },
+    });
+    assert.equal(groundOf(d, "f8"), "file");
+  });
+  it("calls an ungrounded claim, or a chain broken by a missing parent, none", () => {
+    assert.equal(groundOf(dg(), "i2"), "none");
+    assert.equal(groundOf(dg(), "f7"), "none");
+  });
+  it("calls an ungrounded claim that reads a file none", () => {
+    const d = dg({
+      graph: {
+        nodes: {
+          ...G.nodes,
+          i3: {
+            step: "insight",
+            ungrounded: true,
+            from: ["f4"],
+            text: "Below target.",
+          },
+        },
+      },
+      trace: { ...TRACE_G, i3: "ungrounded" },
+    });
+    assert.equal(groundOf(d, "i3"), "none");
+  });
+  it("calls a cycle none, and returns", () => {
+    const d = data({
+      graph: {
+        nodes: {
+          f3: { step: "figure", from: ["f4"], expr: "f4 + 1" },
+          f4: { step: "figure", from: ["f3"], expr: "f3 * 2" },
+        },
+      },
+      trace: { f3: "partial", f4: "partial" },
+    });
+    assert.equal(groundOf(d, "f3"), "none");
+  });
+  it("calls a file chain broken by a missing parent none", () => {
+    const d = dg({
+      graph: {
+        nodes: {
+          ...G.nodes,
+          f8: { step: "figure", from: ["x1", "gone"], expr: "x1 + gone" },
+        },
+      },
+      trace: { ...TRACE_G, f8: "partial" },
+    });
+    assert.equal(groundOf(d, "f8"), "none");
+  });
+  it("calls a cycle that also reaches a file none", () => {
+    const d = data({
+      graph: {
+        nodes: {
+          x1: G.nodes.x1,
+          f3: { step: "figure", from: ["x1", "f4"], expr: "x1 + f4" },
+          f4: { step: "figure", from: ["f3"], expr: "f3 * 2" },
+        },
+      },
+      trace: { f3: "partial", f4: "partial" },
+    });
+    assert.equal(groundOf(d, "f3"), "none");
+  });
+  it("still finds a file when two paths meet on it", () => {
+    const d = dg({
+      graph: {
+        nodes: {
+          ...G.nodes,
+          f8: { step: "figure", from: ["f4", "x1"], expr: "f4 + x1" },
+        },
+      },
+      trace: { ...TRACE_G, f8: "partial" },
+    });
+    assert.equal(groundOf(d, "f8"), "file");
+  });
+});
+
+// A summary carrying these issues.
+const withIssues = (issues, over = {}) =>
+  dg({ summary: { ...data().summary, issues }, ...over });
+const EMPTY = data({ graph: { nodes: {} }, trace: {} });
+const C2 = (node, number) =>
+  issue("C2", node, `bare number "${number}" is not inside a figure's span`);
+
+describe("grounding", () => {
+  it("counts nothing in an empty graph", () => {
+    assert.deepEqual(grounding(EMPTY), {
+      numbers: { sql: 0, file: 0, none: 0 },
+      claims: { supported: 0, unsupported: 0 },
+    });
+  });
+  it("counts figures by what they rest on, and no other step", () => {
+    assert.deepEqual(grounding(dg()).numbers, { sql: 5, file: 1, none: 1 });
+  });
+  it("counts claims supported or stated without support", () => {
+    assert.deepEqual(grounding(dg()).claims, { supported: 1, unsupported: 1 });
+  });
+  it("counts a claim that rests on a file as supported", () => {
+    const d = dg({
+      graph: {
+        nodes: {
+          ...G.nodes,
+          i3: { step: "insight", from: ["f4"], text: "Below target." },
+        },
+      },
+      trace: { ...TRACE_G, i3: "partial" },
+    });
+    assert.deepEqual(grounding(d).claims, { supported: 2, unsupported: 1 });
+  });
+  it("counts each bare number as a number with nothing behind it", () => {
+    const d = withIssues([C2("i1", "1,240"), C2(null, "30")]);
+    assert.deepEqual(grounding(d).numbers, { sql: 5, file: 1, none: 3 });
+  });
+});
+
+describe("headline", () => {
+  it("says when every number and claim is grounded", () => {
+    assert.deepEqual(
+      headline({
+        numbers: { sql: 6, file: 0, none: 0 },
+        claims: { supported: 3, unsupported: 0 },
+      }),
+      {
+        numbers: "All 6 numbers trace to the warehouse.",
+        claims: "All 3 claims are supported.",
+      },
+    );
+  });
+  it("counts each part, in the plural", () => {
+    assert.deepEqual(
+      headline({
+        numbers: { sql: 2, file: 2, none: 2 },
+        claims: { supported: 2, unsupported: 2 },
+      }),
+      {
+        numbers:
+          "2 of 6 numbers trace to the warehouse. 2 rest on a file. 2 have nothing behind them.",
+        claims: "2 of 4 claims are supported. 2 are stated without support.",
+      },
+    );
+  });
+  it("uses the singular for one", () => {
+    assert.deepEqual(
+      headline({
+        numbers: { sql: 1, file: 1, none: 1 },
+        claims: { supported: 1, unsupported: 1 },
+      }),
+      {
+        numbers:
+          "1 of 3 numbers traces to the warehouse. 1 rests on a file. 1 has nothing behind it.",
+        claims: "1 of 2 claims is supported. 1 is stated without support.",
+      },
+    );
+  });
+  it("leaves out a part with nothing in it, but not the first", () => {
+    assert.deepEqual(
+      headline({
+        numbers: { sql: 0, file: 0, none: 2 },
+        claims: { supported: 0, unsupported: 3 },
+      }),
+      {
+        numbers:
+          "0 of 2 numbers trace to the warehouse. 2 have nothing behind them.",
+        claims: "0 of 3 claims are supported. 3 are stated without support.",
+      },
+    );
+  });
+  it('says one grounded number or claim without "All"', () => {
+    assert.deepEqual(
+      headline({
+        numbers: { sql: 1, file: 0, none: 0 },
+        claims: { supported: 1, unsupported: 0 },
+      }),
+      {
+        numbers: "1 number traces to the warehouse.",
+        claims: "1 claim is supported.",
+      },
+    );
+  });
+  it("gives no line when there are no numbers or no claims", () => {
+    assert.deepEqual(headline(grounding(EMPTY)), {
+      numbers: null,
+      claims: null,
+    });
+  });
+});
+
+// builtOn(dg()) rows, reused below.
+const Q1 = {
+  node: "q1",
+  kind: "sql",
+  name: "marts.sales",
+  period: null,
+  pinned: true,
+  numbers: 5,
+};
+const Q2 = {
+  node: "q2",
+  kind: "sql",
+  name: "marts.costs",
+  period: null,
+  pinned: true,
+  numbers: 2,
+};
+const X1 = { node: "x1", kind: "external", name: "targets.csv", numbers: 1 };
+const AUG = { from: "2026-08-01", to: "2026-08-31" };
+
+describe("builtOn", () => {
+  const q1Aug = (over = {}) =>
+    data({
+      graph: {
+        nodes: {
+          q1: { step: "source", kind: "sql", mart: "marts.sales", period: AUG },
+        },
+      },
+      trace: { q1: "full" },
+      ...over,
+    });
+  it("lists nothing when there are no sources", () => {
+    assert.deepEqual(builtOn(EMPTY), []);
+  });
+  it("gives a mart's name and period", () => {
+    assert.deepEqual(builtOn(q1Aug()), [
+      {
+        node: "q1",
+        kind: "sql",
+        name: "marts.sales",
+        period: AUG,
+        pinned: true,
+        numbers: 0,
+      },
+    ]);
+  });
+  it("calls a source with a C7 not pinned", () => {
+    const d = q1Aug({
+      summary: {
+        ...data().summary,
+        issues: [issue("C7", "q1", "SQL uses date functions: current_date")],
+      },
+    });
+    assert.deepEqual(builtOn(d), [
+      {
+        node: "q1",
+        kind: "sql",
+        name: "marts.sales",
+        period: AUG,
+        pinned: false,
+        numbers: 0,
+      },
+    ]);
+  });
+  it("gives an external source's ref", () => {
+    const d = data({
+      graph: { nodes: { x1: G.nodes.x1 } },
+      trace: { x1: "partial" },
+    });
+    assert.deepEqual(builtOn(d), [
+      { node: "x1", kind: "external", name: "targets.csv", numbers: 0 },
+    ]);
+  });
+  it("counts the numbers resting on each source, in graph order", () => {
+    assert.deepEqual(builtOn(dg()), [Q1, Q2, X1]);
+  });
+  it("counts the numbers in a cycle that reaches a source, and returns", () => {
+    const d = data({
+      graph: {
+        nodes: {
+          q1: { step: "source", kind: "sql", mart: "m" },
+          f3: { step: "figure", from: ["f4"] },
+          f4: { step: "figure", from: ["f3", "q1"] },
+        },
+      },
+      trace: {},
+    });
+    assert.equal(builtOn(d)[0].numbers, 2);
+  });
+  it("gives a sql source with no mart no name", () => {
+    const d = data({
+      graph: { nodes: { q1: { step: "source", kind: "sql" } } },
+      trace: {},
+    });
+    assert.deepEqual(builtOn(d), [
+      {
+        node: "q1",
+        kind: "sql",
+        name: null,
+        period: null,
+        pinned: true,
+        numbers: 0,
+      },
+    ]);
+  });
+});
+
+describe("builtFrom", () => {
+  it("gives a source its own row", () => {
+    assert.deepEqual(builtFrom(dg(), "x1"), [X1]);
+  });
+  it("gives the sources under a figure in graph order", () => {
+    assert.deepEqual(builtFrom(dg(), "f3"), [Q1, Q2]);
+  });
+  it("gives nothing for an ungrounded claim, and skips a missing parent", () => {
+    assert.deepEqual(builtFrom(dg(), "i2"), []);
+    assert.deepEqual(builtFrom(dg(), "f7"), [Q1]);
+  });
+});
+
+describe("mismatches", () => {
+  const c3 = (message) => withIssues([issue("C3", "f1", message)]);
+  it("lists nothing when no number differs", () => {
+    assert.deepEqual(mismatches(dg()), []);
+  });
+  it("gives the number on the page and the one in the graph", () => {
+    assert.deepEqual(
+      mismatches(c3('page shows "$58.90" but display is "$61.20"')),
+      [{ node: "f1", page: ["$58.90"], graph: "$61.20" }],
+    );
+  });
+  it("gives every text the page shows", () => {
+    assert.deepEqual(
+      mismatches(c3('page shows "$58.90", "$59.00" but display is "$61.20"'))[0]
+        .page,
+      ["$58.90", "$59.00"],
+    );
+  });
+  it("gives the value when the figure has no display", () => {
+    assert.deepEqual(mismatches(c3('page shows "47%" but value is 0.466')), [
+      { node: "f1", page: ["47%"], graph: "0.466" },
+    ]);
+  });
+  it("keeps a C3 it cannot read, with no values", () => {
+    assert.deepEqual(mismatches(c3("display is `x`")), [
+      { node: "f1", page: [], graph: null },
+    ]);
+  });
+});
+
+describe("untraced", () => {
+  it("lists nothing when everything is grounded", () => {
+    const d = data({
+      graph: {
+        nodes: {
+          q1: G.nodes.q1,
+          f1: { step: "figure", from: ["q1"], display: "12" },
+        },
+      },
+      trace: { q1: "full", f1: "full" },
+    });
+    assert.deepEqual(untraced(d), []);
+  });
+  it("lists a figure with nothing behind it", () => {
+    const d = data({
+      graph: {
+        nodes: {
+          f8: { step: "figure", from: [], ungrounded: true, display: "$50" },
+        },
+      },
+      trace: { f8: "ungrounded" },
+    });
+    assert.deepEqual(untraced(d), [
+      { node: "f8", kind: "figure", text: "$50" },
+    ]);
+  });
+  it("lists a claim stated without support", () => {
+    const d = data({
+      graph: { nodes: { i2: G.nodes.i2 } },
+      trace: { i2: "ungrounded" },
+    });
+    assert.deepEqual(untraced(d), [
+      { node: "i2", kind: "claim", text: "Margins will rise." },
+    ]);
+  });
+  it("lists a bare number with the node it sits in", () => {
+    const d = data({
+      graph: { nodes: {} },
+      trace: {},
+      summary: {
+        ...data().summary,
+        issues: [C2("i1", "1,240"), C2(null, "30")],
+      },
+    });
+    assert.deepEqual(untraced(d), [
+      { node: "i1", kind: "bare", text: "1,240" },
+      { node: null, kind: "bare", text: "30" },
+    ]);
+  });
+  it("lists figures, then bare numbers, then claims", () => {
+    assert.deepEqual(untraced(withIssues([C2("i1", "1,240")])), [
+      { node: "f7", kind: "figure", text: "12" },
+      { node: "i1", kind: "bare", text: "1,240" },
+      { node: "i2", kind: "claim", text: "Margins will rise." },
+    ]);
+  });
+  it("keeps a C2 it cannot read, as check's message", () => {
+    const rows = untraced(withIssues([issue("C2", "i1", "odd `thing`")]));
+    assert.deepEqual(
+      rows.find((r) => r.kind === "bare"),
+      { node: "i1", kind: "bare", text: "odd `thing`" },
+    );
+  });
+});
+
+describe("checkStatus", () => {
+  const s5 = issue("S5", "v1", "unknown field `notes` on a view");
+  const c1 = issue("C1", "f9", "x", "error");
+  const c6 = issue("C6", "f3", "y", "error");
+  it("says check is clean", () => {
+    assert.deepEqual(checkStatus(dg()), {
+      line: "check · clean",
+      issues: [],
+      reason: null,
+    });
+  });
+  it("counts warnings as notes, and lists every one, C2 included", () => {
+    const c2 = C2("i1", "1,240");
+    assert.deepEqual(checkStatus(withIssues([s5, c2])), {
+      line: "check · 2 notes",
+      issues: [s5, c2],
+      reason: null,
+    });
+  });
+  it("uses the singular for one", () => {
+    assert.equal(
+      checkStatus(withIssues([issue("C1", "f9", "x", "error"), s5])).line,
+      "check · 1 error · 1 note",
+    );
+  });
+  it("lists errors before warnings, each in check's order", () => {
+    const status = checkStatus(withIssues([s5, c1, c6]));
+    assert.equal(status.line, "check · 2 errors · 1 note");
+    assert.deepEqual(status.issues, [c1, c6, s5]);
+  });
+  it("gives sql's reason when the report fails check", () => {
+    assert.equal(
+      checkStatus(withIssues([c1], { refused: REFUSED })).reason,
+      REFUSED,
+    );
+  });
+});
 
 describe("nodesOf", () => {
   it("gives a graph's nodes as they are", () => {
@@ -437,81 +903,6 @@ describe("beats", () => {
   });
 });
 
-describe("reviewerWording", () => {
-  it("hands a builder warning over as a note, code in backticks shown as code", () => {
-    assert.deepEqual(
-      reviewerWording(issue("S5", "v1", "unknown field `notes` on a view")),
-      {
-        tone: "note",
-        html: "For the builder: unknown field <code>notes</code> on a view",
-      },
-    );
-  });
-  it("says what C3 found in the reviewer's words", () => {
-    assert.deepEqual(
-      reviewerWording(
-        issue("C3", "f1", 'page shows "$58.90" but display is "$61.20"'),
-      ),
-      {
-        tone: "stop",
-        html: "The page shows <b>$58.90</b>, but the lineage records <b>$61.20</b>.",
-      },
-    );
-  });
-  it("falls back to check's message for a C3 it cannot read", () => {
-    assert.deepEqual(reviewerWording(issue("C3", "f1", "display is `x`")), {
-      tone: "stop",
-      html: "display is <code>x</code>",
-    });
-  });
-  it("says what C2 found", () => {
-    assert.deepEqual(
-      reviewerWording(
-        issue("C2", "i1", 'bare number "1,240" is not inside a figure\'s span'),
-      ),
-      {
-        tone: "warn",
-        html: "<b>1,240</b> in this sentence isn't bound to any figure, so it has no lineage.",
-      },
-    );
-  });
-  it("says what one C7 part means", () => {
-    assert.deepEqual(
-      reviewerWording(
-        issue("C7", "q2", "SQL uses date functions: current_date"),
-      ),
-      {
-        tone: "warn",
-        html: "Dates aren't pinned. It uses <code>current_date</code>, so re-running it gives different numbers.",
-      },
-    );
-  });
-  it("says what each C7 part means, in order", () => {
-    assert.deepEqual(reviewerWording(issue("C7", "q2", C7_MESSY)), {
-      tone: "warn",
-      html: "Dates aren't pinned. No columns are recorded. The SQL doesn't use the recorded period as fixed dates. It uses <code>current_date</code>, so re-running it gives different numbers.",
-    });
-  });
-  it("falls back to check's message for a C2 it cannot read", () => {
-    assert.deepEqual(reviewerWording(issue("C2", "i1", "odd `thing`")), {
-      tone: "warn",
-      html: "odd <code>thing</code>",
-    });
-  });
-  it("falls back to check's message for a C7 part it cannot read", () => {
-    assert.deepEqual(reviewerWording(issue("C7", "q2", "odd `thing`")), {
-      tone: "warn",
-      html: "Dates aren't pinned. odd <code>thing</code>",
-    });
-  });
-  it("gives an error as check's message, escaped", () => {
-    assert.deepEqual(
-      reviewerWording(issue("C6", "f3", "cycle f3 -> f4 -> f3", "error")),
-      { tone: "stop", html: "cycle f3 -&gt; f4 -&gt; f3" },
-    );
-  });
-});
-
 describe("highlightSql", () => {
   it("escapes text that is not a keyword", () => {
     assert.equal(highlightSql("a < b & c"), "a &lt; b &amp; c");
@@ -535,206 +926,6 @@ describe("highlightSql", () => {
     assert.equal(
       highlightSql("-- from q1\nselect 1"),
       '<span class="cm">-- from q1</span>\n<span class="kw">select</span> <span class="num">1</span>',
-    );
-  });
-});
-
-describe("needsAttention", () => {
-  it("has nothing for a clean summary", () => {
-    assert.deepEqual(needsAttention(data().summary), { items: [], notes: [] });
-  });
-  it("lists an ungrounded node", () => {
-    const summary = {
-      ...data().summary,
-      ungrounded: [{ node: "i2", text: "Margins will rise." }],
-    };
-    assert.deepEqual(needsAttention(summary).items, [
-      {
-        node: "i2",
-        swatch: "ungrounded",
-        tone: "stop",
-        tag: "Nothing behind it",
-        html: "Margins will rise.",
-      },
-    ]);
-  });
-  it("lists an external source", () => {
-    const summary = {
-      ...data().summary,
-      external: [{ node: "x1", ref: "targets.csv" }],
-    };
-    assert.deepEqual(needsAttention(summary).items, [
-      {
-        node: "x1",
-        swatch: "partial",
-        tone: "ext",
-        tag: "External source",
-        html: "targets.csv. Trailline can't see inside it.",
-      },
-    ]);
-  });
-  it('lists a C7 without repeating "Dates aren\'t pinned"', () => {
-    const summary = {
-      ...data().summary,
-      issues: [issue("C7", "q2", C7_MESSY)],
-    };
-    assert.deepEqual(needsAttention(summary), {
-      items: [
-        {
-          node: "q2",
-          swatch: "warn",
-          tone: "warn",
-          tag: "C7 · Dates not pinned",
-          html: "No columns are recorded. The SQL doesn't use the recorded period as fixed dates. It uses <code>current_date</code>, so re-running it gives different numbers.",
-        },
-      ],
-      notes: [],
-    });
-  });
-  it("lists a C3 as a stop", () => {
-    const summary = {
-      ...data().summary,
-      issues: [
-        issue("C3", "f1", 'page shows "$58.90" but display is "$61.20"'),
-      ],
-    };
-    assert.deepEqual(needsAttention(summary).items, [
-      {
-        node: "f1",
-        swatch: "stopw",
-        tone: "stop",
-        tag: "C3 · Page differs from lineage",
-        html: "The page shows <b>$58.90</b>, but the lineage records <b>$61.20</b>.",
-      },
-    ]);
-  });
-  it("lists a C2 as a warning", () => {
-    const summary = {
-      ...data().summary,
-      issues: [
-        issue("C2", "i1", 'bare number "1,240" is not inside a figure\'s span'),
-      ],
-    };
-    const [item] = needsAttention(summary).items;
-    assert.equal(item.tag, "C2 · Number not bound");
-    assert.equal(item.swatch, "warn");
-    assert.equal(item.tone, "warn");
-  });
-  it("puts the builder's warnings in notes, not items", () => {
-    const s5 = issue("S5", "v1", "unknown field `notes` on a view");
-    const summary = { ...data().summary, issues: [s5] };
-    assert.deepEqual(needsAttention(summary), { items: [], notes: [s5] });
-  });
-  it("orders stops, then warnings, then external sources", () => {
-    const summary = {
-      ...data().summary,
-      ungrounded: [{ node: "i2", text: "Margins will rise." }],
-      external: [{ node: "x1", ref: "targets.csv" }],
-      issues: [issue("C7", "q2", C7_MESSY)],
-    };
-    assert.deepEqual(
-      needsAttention(summary).items.map((item) => item.node),
-      ["i2", "q2", "x1"],
-    );
-  });
-  it("puts a C3 before a C7 whatever order check gave them", () => {
-    const summary = {
-      ...data().summary,
-      issues: [
-        issue("C7", "q2", C7_MESSY),
-        issue("C3", "f1", 'page shows "1" but display is "2"'),
-      ],
-    };
-    assert.deepEqual(
-      needsAttention(summary).items.map((item) => item.node),
-      ["f1", "q2"],
-    );
-  });
-  it("puts errors before everything else, in check's order", () => {
-    const summary = {
-      ...data().summary,
-      ungrounded: [{ node: "i2", text: "Margins will rise." }],
-      issues: [
-        issue("C1", "f9", 'data-trailline="f9" resolves to no node', "error"),
-        issue("C4", "i1", "`from` is empty", "error"),
-      ],
-    };
-    assert.deepEqual(needsAttention(summary), {
-      items: [
-        {
-          node: "f9",
-          swatch: "stopw",
-          tone: "stop",
-          tag: "C1 · Error",
-          html: "data-trailline=&quot;f9&quot; resolves to no node",
-        },
-        {
-          node: "i1",
-          swatch: "stopw",
-          tone: "stop",
-          tag: "C4 · Error",
-          html: "<code>from</code> is empty",
-        },
-        {
-          node: "i2",
-          swatch: "ungrounded",
-          tone: "stop",
-          tag: "Nothing behind it",
-          html: "Margins will rise.",
-        },
-      ],
-      notes: [],
-    });
-  });
-});
-
-describe("overview", () => {
-  it("says when every number and claim traces to SQL", () => {
-    assert.deepEqual(overview(nums("full", "full")), {
-      lede: "All 2 numbers and claims trace back to SQL.",
-      sub: "Click any of them in the report to see how it was computed.",
-    });
-  });
-  it("counts what traces, what is external and what has nothing behind it", () => {
-    assert.deepEqual(
-      overview(nums("full", "partial", "partial", "ungrounded", "ungrounded")),
-      {
-        lede: "1 of 5 numbers and claims trace back to SQL.",
-        sub: "2 rest on an external source. 2 have nothing recorded behind them.",
-      },
-    );
-  });
-  it("uses the singular for one", () => {
-    assert.equal(
-      overview(nums("full", "partial", "ungrounded")).sub,
-      "1 rests on an external source. 1 has nothing recorded behind it.",
-    );
-  });
-  it("leaves out a part with nothing in it", () => {
-    assert.equal(
-      overview(nums("full", "ungrounded")).sub,
-      "1 has nothing recorded behind it.",
-    );
-  });
-  it("leads with the errors when the report fails check", () => {
-    const failing = (...codes) => ({
-      ...nums("full"),
-      refused: REFUSED,
-      summary: {
-        ...data().summary,
-        issues: [
-          ...codes.map((code) => issue(code, "f9", "x", "error")),
-          issue("S5", "v1", "z"),
-        ],
-      },
-    });
-    assert.deepEqual(overview(failing("C1", "C6")), {
-      lede: "This report does not pass check: 2 errors.",
-      sub: "The lineage shows as far as it goes. Copying SQL is off until the errors are fixed.",
-    });
-    assert.equal(
-      overview(failing("C1")).lede,
-      "This report does not pass check: 1 error.",
     );
   });
 });
@@ -862,74 +1053,6 @@ describe("lineage: fixtures", () => {
     assert.equal(reportSql(d).sql, CLEAN_SQL);
     assert.equal(chainSql(d, "f3").sql, CLEAN_F3_SQL);
   });
-  it("gives clean a calm summary", () => {
-    const d = fx("clean");
-    assert.deepEqual(overview(d), {
-      lede: "All 9 numbers and claims trace back to SQL.",
-      sub: "Click any of them in the report to see how it was computed.",
-    });
-    assert.deepEqual(needsAttention(d.summary), { items: [], notes: [] });
-  });
-  it("lists messy's 7 items that need attention", () => {
-    assert.deepEqual(
-      items("messy").map((i) => i.node),
-      ["i2", "i3", "i4", "f1", "i1", "q2", "t1"],
-    );
-    assert.deepEqual(
-      items("messy").map((i) => i.tag),
-      [
-        "Nothing behind it",
-        "Nothing behind it",
-        "Nothing behind it",
-        "C3 · Page differs from lineage",
-        "C2 · Number not bound",
-        "C7 · Dates not pinned",
-        "External source",
-      ],
-    );
-  });
-  it("gives messy's builder notes and lede", () => {
-    const d = fx("messy");
-    assert.deepEqual(
-      needsAttention(d.summary).notes.map((i) => i.code),
-      ["S6", "S5", "S7", "C8"],
-    );
-    assert.deepEqual(overview(d), {
-      lede: "2 of 8 numbers and claims trace back to SQL.",
-      sub: "3 rest on an external source. 3 have nothing recorded behind them.",
-    });
-  });
-  it("shows messy's C3 and C7 in the reviewer's words", () => {
-    const { issues } = fx("messy").summary;
-    const on = (node, code) =>
-      reviewerWording(issues.find((i) => i.node === node && i.code === code));
-    assert.deepEqual(on("f1", "C3"), {
-      tone: "stop",
-      html: "The page shows <b>$58.90</b>, but the lineage records <b>$61.20</b>.",
-    });
-    assert.deepEqual(on("q2", "C7"), {
-      tone: "warn",
-      html: "Dates aren't pinned. No columns are recorded. The SQL doesn't use the recorded period as fixed dates. It uses <code>current_date</code>, so re-running it gives different numbers.",
-    });
-  });
-  it("lists broken's 9 errors first", () => {
-    const d = fx("broken");
-    assert.equal(d.summary.issues.length, 10);
-    assert.deepEqual(
-      items("broken").map((i) => i.tag),
-      d.summary.issues
-        .filter((i) => i.severity === "error")
-        .map((i) => `${i.code} · Error`),
-    );
-    assert.deepEqual(
-      needsAttention(d.summary).notes.map((n) => `${n.code} ${n.node}`),
-      ["S8 f5"],
-    );
-    assert.equal(
-      overview(d).lede,
-      "This report does not pass check: 9 errors.",
-    );
-  });
   it("turns off every copy button on broken", async () => {
     const d = fx("broken");
     const off = { sql: null, reason: d.refused };
@@ -940,6 +1063,149 @@ describe("lineage: fixtures", () => {
       assert.deepEqual(chainSql(d, id), off, id);
       if (node.sql) assert.deepEqual(stepSql(d, id), off, id);
     }
+  });
+  it("gives clean a calm reviewer view", () => {
+    const d = fx("clean");
+    assert.deepEqual(headline(grounding(d)), {
+      numbers: "All 6 numbers trace to the warehouse.",
+      claims: "All 3 claims are supported.",
+    });
+    assert.deepEqual(mismatches(d), []);
+    assert.deepEqual(untraced(d), []);
+    assert.deepEqual(checkStatus(d), {
+      line: "check · clean",
+      issues: [],
+      reason: null,
+    });
+  });
+  it("says what clean is built on", () => {
+    const d = fx("clean");
+    const q1 = {
+      node: "q1",
+      kind: "sql",
+      name: "marts.retention_by_channel",
+      period: { from: "2026-01-01", to: "2026-08-31" },
+      pinned: true,
+      numbers: 6,
+    };
+    assert.deepEqual(builtOn(d), [
+      q1,
+      {
+        node: "q2",
+        kind: "sql",
+        name: "marts.acquisition_by_channel",
+        period: AUG,
+        pinned: true,
+        numbers: 2,
+      },
+    ]);
+    assert.deepEqual(builtFrom(d, "f3"), [q1]);
+  });
+  it("gives messy's grounding and what is not traced", () => {
+    const d = fx("messy");
+    assert.deepEqual(headline(grounding(d)), {
+      numbers:
+        "2 of 5 numbers trace to the warehouse. 2 rest on a file. 1 has nothing behind it.",
+      claims: "1 of 4 claims is supported. 3 are stated without support.",
+    });
+    assert.deepEqual(untraced(d), [
+      { node: "i1", kind: "bare", text: "1,240" },
+      {
+        node: "i2",
+        kind: "claim",
+        text: "Industry benchmarks put paid search cost per customer around $50.",
+      },
+      {
+        node: "i3",
+        kind: "claim",
+        text: "Creative fatigue on the summer campaign is the likely driver.",
+      },
+      {
+        node: "i4",
+        kind: "claim",
+        text: "Costs should ease in September once the new creative is live.",
+      },
+    ]);
+  });
+  it("says what messy is built on, with q2 not pinned", () => {
+    const d = fx("messy");
+    const q1 = {
+      node: "q1",
+      kind: "sql",
+      name: "marts.acquisition_by_channel",
+      period: AUG,
+      pinned: true,
+      numbers: 2,
+    };
+    const t1 = {
+      node: "t1",
+      kind: "external",
+      name: "q3-targets.csv",
+      numbers: 2,
+    };
+    assert.deepEqual(builtOn(d), [
+      q1,
+      {
+        node: "q2",
+        kind: "sql",
+        name: "marts.web_sessions",
+        period: AUG,
+        pinned: false,
+        numbers: 1,
+      },
+      t1,
+    ]);
+    assert.deepEqual(builtFrom(d, "f3"), [q1, t1]);
+  });
+  it("gives messy's mismatch and its status bar", () => {
+    const d = fx("messy");
+    assert.deepEqual(mismatches(d), [
+      { node: "f1", page: ["$58.90"], graph: "$61.20" },
+    ]);
+    const status = checkStatus(d);
+    assert.equal(status.line, "check · 7 notes");
+    assert.deepEqual(
+      status.issues.map((i) => i.code),
+      ["S6", "S5", "S7", "C2", "C3", "C7", "C8"],
+    );
+    assert.equal(status.reason, null);
+  });
+  it("gives broken's grounding as far as its lineage goes", () => {
+    const d = fx("broken");
+    assert.deepEqual(headline(grounding(d)), {
+      numbers:
+        "3 of 5 numbers trace to the warehouse. 2 have nothing behind them.",
+      claims: "3 of 4 claims are supported. 1 is stated without support.",
+    });
+    assert.deepEqual(untraced(d), [
+      { node: "f3", kind: "figure", text: "3" },
+      { node: "f4", kind: "figure", text: "2" },
+      {
+        node: "i1",
+        kind: "claim",
+        text: "Monthly subscribers are the churn problem.",
+      },
+    ]);
+    assert.deepEqual(builtOn(d), [
+      {
+        node: "q1",
+        kind: "sql",
+        name: "marts.subscription_churn",
+        period: { from: "2026-07-01", to: "2026-08-31" },
+        pinned: true,
+        numbers: 3,
+      },
+    ]);
+  });
+  it("lists broken's errors first in the status bar, with sql's reason", () => {
+    const d = fx("broken");
+    const status = checkStatus(d);
+    assert.equal(status.line, "check · 9 errors · 1 note");
+    assert.deepEqual(
+      status.issues.map((i) => i.code),
+      ["C9", "C4", "S4", "S2", "S3", "C1", "C1", "C5", "C6", "S8"],
+    );
+    assert.equal(status.reason, d.refused);
   });
   it("lists S1 for a graph the page cannot read", (t) => {
     const dir = tempDir(t);
@@ -958,16 +1224,15 @@ describe("lineage: fixtures", () => {
         graphPath,
       });
       assert.deepEqual(nodesOf(d.graph), {}, text);
+      const status = checkStatus(d);
       assert.deepEqual(
-        needsAttention(d.summary).items.map((i) => i.tag),
-        ["S1 · Error"],
+        status.issues.map((i) => i.code),
+        ["S1"],
         text,
       );
-      assert.equal(
-        overview(d).lede,
-        "This report does not pass check: 1 error.",
-        text,
-      );
+      assert.equal(status.line, "check · 1 error", text);
+      assert.deepEqual(grounding(d), grounding(EMPTY), text);
+      assert.deepEqual(builtOn(d), [], text);
       assert.equal(reportSql(d).sql, null, text);
     }
   });
