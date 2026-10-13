@@ -114,6 +114,7 @@
     "q1": {
       "step": "source",
       "kind": "sql",
+      "desc": "Monthly 30-day retention inputs for each channel, region and signup cohort, January to August 2026",
       "how": "captured",
       "mart": "marts.retention_by_channel",
       "period": {
@@ -133,6 +134,7 @@
     "q2": {
       "step": "source",
       "kind": "sql",
+      "desc": "New customers for each channel who signed up in August 2026",
       "how": "captured",
       "mart": "marts.acquisition_by_channel",
       "period": {
@@ -168,6 +170,7 @@
     },
     "v1": {
       "step": "view",
+      "desc": "Retention for each channel and month, with each channel ranked against the others in its month",
       "from": [
         "q1"
       ],
@@ -188,6 +191,7 @@
     },
     "v2": {
       "step": "view",
+      "desc": "August new customers and retention for each channel, side by side",
       "from": [
         "q1",
         "q2"
@@ -205,6 +209,7 @@
     },
     "f1": {
       "step": "figure",
+      "desc": "Paid social's retention for the August 2026 signup cohort",
       "from": [
         "v1"
       ],
@@ -215,6 +220,7 @@
     },
     "f2": {
       "step": "figure",
+      "desc": "Paid social's retention for the July 2026 signup cohort",
       "from": [
         "v1"
       ],
@@ -225,6 +231,7 @@
     },
     "f3": {
       "step": "figure",
+      "desc": "August retention minus July retention, as a share of July retention",
       "from": [
         "f1",
         "f2"
@@ -236,6 +243,7 @@
     },
     "f4": {
       "step": "figure",
+      "desc": "Paid social's retention rank among the channels in August 2026",
       "from": [
         "v1"
       ],
@@ -246,6 +254,7 @@
     },
     "f5": {
       "step": "figure",
+      "desc": "Paid social's August new customers as a share of all channels' August new customers",
       "from": [
         "v2"
       ],
@@ -256,6 +265,7 @@
     },
     "f6": {
       "step": "figure",
+      "desc": "The channel with the highest retention in August 2026",
       "from": [
         "v2"
       ],

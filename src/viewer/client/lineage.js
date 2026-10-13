@@ -264,7 +264,7 @@ const parentsOf = (graph, x) => {
 
 /**
  * The chain under `id` in beats, the clicked node's beat first.
- * @returns {{ n: number, ids: string[] }[]}
+ * @returns {{ word: string | null, ids: string[] }[]}
  */
 export function beats(graph, id) {
   const chain = new Set();
@@ -294,7 +294,86 @@ export function beats(graph, id) {
     ids.sort((a, b) => rank(a) - rank(b));
     if (ids.length) found.push(ids);
   }
-  return found.map((ids, k) => ({ n: found.length - k, ids }));
+  const top = graph.nodes[id];
+  const computed =
+    top?.step === "figure" &&
+    (words(top.sql) !== null || words(top.expr) !== null);
+  const first = computed ? "Computed as" : null;
+  return found.map((ids, k) => ({ word: k ? "Built on" : first, ids }));
+}
+
+/** A string with something in it, else null. */
+const words = (x) => (typeof x === "string" && x.trim() ? x : null);
+
+/**
+ * What a step says about itself in words, and its SQL toggle: `show` is null
+ * when the step has no SQL to show.
+ * @returns {{ desc: string | null, note: string | null, show: { label: string, open: boolean } | null }}
+ */
+export function stepText(graph, id) {
+  const node = nodesOf(graph)[id];
+  if (!node) return { desc: null, note: null, show: null };
+  // An external source says what it is in `given`, an insight in `text`.
+  const described = node.step !== "insight" && node.kind !== "external";
+  const desc = described ? words(node.desc) : null;
+  const note = words(node.transform);
+  const hasSql = words(node.sql) !== null;
+  const hasExpr = node.step === "figure" && words(node.expr) !== null;
+  if (!hasSql && !hasExpr) return { desc, note, show: null };
+  const label =
+    node.step === "source"
+      ? "Show query"
+      : hasSql
+        ? "Show SQL"
+        : "Show calculation";
+  return { desc, note, show: { label, open: desc === null } };
+}
+
+/**
+ * The structured facts of a step, one shape per kind of step, read from its
+ * fields and never from its `desc`; null for an id not in the graph.
+ */
+export function stepFacts(data, id) {
+  const node = nodesOf(data.graph)[id];
+  if (!node) return null;
+  const list = (x) => (Array.isArray(x) ? x : []);
+  if (node.step === "view") {
+    return {
+      kind: "view",
+      from: list(node.from),
+      columns: list(node.columns),
+      visual: node.encoding?.visual ?? null,
+    };
+  }
+  if (node.step === "insight") {
+    return { kind: "claim", text: node.text ?? null, from: list(node.from) };
+  }
+  if (node.step === "figure") {
+    const shown = {
+      value: node.display ?? (node.value == null ? null : String(node.value)),
+      label: node.label ?? null,
+    };
+    if (words(node.sql) === null && words(node.expr) !== null) {
+      return { kind: "formula", ...shown, expr: node.expr };
+    }
+    return { kind: "pick", ...shown, from: list(node.from) };
+  }
+  if (node.kind === "external") {
+    return {
+      kind: "external",
+      ref: node.ref ?? null,
+      given: node.given ?? null,
+      columns: list(node.columns),
+    };
+  }
+  return {
+    kind: "sql",
+    mart: node.mart ?? null,
+    period: node.period ?? null,
+    pinned: !data.summary.issues.some((i) => i.code === "C7" && i.node === id),
+    how: node.how ?? null,
+    columns: list(node.columns),
+  };
 }
 
 const escapeHtml = (text) =>

@@ -29,6 +29,10 @@ export const RULES = {
   S6: { severity: "warning", title: "node id prefix does not match its step" },
   S7: { severity: "warning", title: "descriptive field is missing" },
   S8: { severity: "warning", title: "figure expression cannot be read" },
+  S9: {
+    severity: "warning",
+    title: "description is too long or not one line",
+  },
   C4: {
     severity: "error",
     title: "node has no parents and is not marked ungrounded",
@@ -40,6 +44,8 @@ export const RULES = {
 };
 
 const MAX_ROWS = 10;
+const MAX_DESC = 120;
+const DESC_HINT = "what this step computes and how, in words";
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 const ISO_TIMESTAMP =
   /^(\d{4}-\d{2}-\d{2})T(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|[+-](?:[01]\d|2[0-3]):[0-5]\d)$/;
@@ -61,6 +67,7 @@ const FIELDS = {
   sql: new Set([
     ...COMMON_FIELDS,
     "kind",
+    "desc",
     "how",
     "mart",
     "period",
@@ -77,9 +84,17 @@ const FIELDS = {
     "columns",
     "rows",
   ]),
-  view: new Set([...DERIVED_FIELDS, "sql", "columns", "encoding", "rows"]),
+  view: new Set([
+    ...DERIVED_FIELDS,
+    "desc",
+    "sql",
+    "columns",
+    "encoding",
+    "rows",
+  ]),
   figure: new Set([
     ...DERIVED_FIELDS,
+    "desc",
     "sql",
     "expr",
     "value",
@@ -246,6 +261,13 @@ function checkNode(id, node, report) {
       need("text", isNonEmptyString, "the claim, as text");
   }
 
+  if (allowed?.has("desc")) {
+    may("desc", isString, "a string");
+    if (node.ungrounded !== true) want("desc", DESC_HINT);
+    const problem = isString(node.desc) && descProblem(node.desc);
+    if (problem) report("S9", id, "desc", problem);
+  }
+
   if (allowed) {
     for (const field of Object.keys(node)) {
       if (!allowed.has(field)) {
@@ -263,6 +285,15 @@ function checkNode(id, node, report) {
       `${describeKind(node)} ids conventionally start with \`${prefix}\`, e.g. ${prefix}1`,
     );
   }
+}
+
+/** Why a `desc` is not one short line, or null. Length wins over a break. */
+function descProblem(desc) {
+  const length = [...desc].length;
+  const rule = `keep it to one line of ${MAX_DESC} or fewer`;
+  if (length > MAX_DESC) return `\`desc\` is ${length} characters; ${rule}`;
+  if (/[\r\n]/.test(desc)) return `\`desc\` has a line break; ${rule}`;
+  return null;
 }
 
 function describeKind(node) {

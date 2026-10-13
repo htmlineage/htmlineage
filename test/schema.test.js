@@ -25,15 +25,23 @@ const graphOf = (nodes) => ({ trailline: "1.0", nodes });
 const sqlSource = {
   step: "source",
   kind: "sql",
+  desc: "Orders placed in January 2026",
   mart: "marts.orders",
   period: { from: "2026-01-01", to: "2026-01-31" },
   sql: "select\n    order_id\nfrom marts.orders",
   columns: ["order_id"],
 };
-const view = { step: "view", from: ["q1"], sql: "select 1", columns: ["a"] };
+const view = {
+  step: "view",
+  from: ["q1"],
+  desc: "Orders for each customer",
+  sql: "select 1",
+  columns: ["a"],
+};
 const figure = {
   step: "figure",
   from: ["v1"],
+  desc: "The first order amount",
   sql: "select a from v1",
   value: 1,
   display: "1",
@@ -195,10 +203,9 @@ describe("sources", () => {
   });
 
   it("leaves missing sql-source fields to C7", () => {
-    assert.deepEqual(
-      codes(graphOf({ q1: { step: "source", kind: "sql" } })),
-      [],
-    );
+    assert.deepEqual(codes(graphOf({ q1: { step: "source", kind: "sql" } })), [
+      "S7 warning q1",
+    ]);
   });
 
   it("warns when an external source does not say what it is", () => {
@@ -358,8 +365,9 @@ describe("views, figures, insights", () => {
   });
 
   it("warns on each missing descriptive field of a figure", () => {
-    const bare = without(figure, "value", "display", "label");
+    const bare = without(figure, "value", "display", "label", "desc");
     assert.deepEqual(codes(graphOf({ f1: bare })), [
+      "S7 warning f1",
       "S7 warning f1",
       "S7 warning f1",
       "S7 warning f1",
@@ -379,5 +387,191 @@ describe("views, figures, insights", () => {
     );
     assert.equal(issue.field, "text");
     assert.equal(issue.message, "insight is missing `text`");
+  });
+});
+
+describe("desc", () => {
+  const D = "Monthly retention for each channel";
+
+  it("accepts a desc on a sql source, a view and a figure", () => {
+    assert.deepEqual(
+      codes(
+        graphOf({
+          q1: { ...sqlSource, desc: D },
+          v1: { ...view, desc: D },
+          f1: { ...figure, desc: D },
+          f2: {
+            step: "figure",
+            from: ["f1"],
+            expr: "f1 * 2",
+            value: 2,
+            display: "2",
+            label: "Two",
+            desc: D,
+          },
+        }),
+      ),
+      [],
+    );
+  });
+
+  it("warns when a view has no desc", () => {
+    assert.deepEqual(validateGraph(graphOf({ v1: without(view, "desc") })), [
+      {
+        code: "S7",
+        severity: "warning",
+        node: "v1",
+        field: "desc",
+        message:
+          "view has no `desc` (what this step computes and how, in words)",
+      },
+    ]);
+  });
+
+  it("warns when a sql source or a figure has no desc", () => {
+    assert.deepEqual(
+      codes(
+        graphOf({
+          q1: without(sqlSource, "desc"),
+          f1: without(figure, "desc"),
+          f2: {
+            step: "figure",
+            from: ["f1"],
+            expr: "f1 * 2",
+            value: 2,
+            display: "2",
+            label: "Two",
+          },
+        }),
+      ),
+      ["S7 warning f1", "S7 warning f2", "S7 warning q1"],
+    );
+  });
+
+  it("treats a blank desc as missing", () => {
+    assert.deepEqual(codes(graphOf({ v1: { ...view, desc: "  " } })), [
+      "S7 warning v1",
+    ]);
+  });
+
+  const external = {
+    step: "source",
+    kind: "external",
+    type: "csv",
+    ref: "t.csv",
+    given: "Targets",
+  };
+  const insight = { step: "insight", from: ["f1"], text: "Up." };
+
+  it("wants no desc on an external source or an insight", () => {
+    assert.deepEqual(codes(graphOf({ x1: external, i1: insight })), []);
+  });
+
+  it("calls a desc on an external source or an insight an unknown field", () => {
+    assert.deepEqual(
+      codes(
+        graphOf({
+          x1: { ...external, desc: D },
+          i1: { ...insight, desc: D },
+        }),
+      ),
+      ["S5 warning i1", "S5 warning x1"],
+    );
+  });
+
+  it("wants no desc on an ungrounded view or figure", () => {
+    assert.deepEqual(
+      codes(
+        graphOf({
+          v1: { step: "view", from: [], ungrounded: true, columns: ["a"] },
+          f1: {
+            step: "figure",
+            from: [],
+            ungrounded: true,
+            value: 1,
+            display: "1",
+            label: "One",
+          },
+        }),
+      ),
+      [],
+    );
+  });
+
+  it("flags a desc that is not text", () => {
+    assert.deepEqual(validateGraph(graphOf({ v1: { ...view, desc: 7 } })), [
+      {
+        code: "S4",
+        severity: "error",
+        node: "v1",
+        field: "desc",
+        message: "`desc` must be a string",
+      },
+    ]);
+  });
+
+  it("accepts a desc of exactly 120 characters", () => {
+    assert.deepEqual(
+      codes(graphOf({ v1: { ...view, desc: "a".repeat(120) } })),
+      [],
+    );
+  });
+
+  it("warns when a desc is over 120 characters", () => {
+    assert.deepEqual(
+      validateGraph(graphOf({ v1: { ...view, desc: "a".repeat(121) } })),
+      [
+        {
+          code: "S9",
+          severity: "warning",
+          node: "v1",
+          field: "desc",
+          message:
+            "`desc` is 121 characters; keep it to one line of 120 or fewer",
+        },
+      ],
+    );
+  });
+
+  it("counts characters, not UTF-16 units", () => {
+    assert.deepEqual(
+      codes(graphOf({ v1: { ...view, desc: "€📈".repeat(60) } })),
+      [],
+    );
+  });
+
+  it("warns when a desc has a line break", () => {
+    assert.deepEqual(
+      validateGraph(
+        graphOf({
+          v1: { ...view, desc: "Monthly retention\nfor each channel" },
+        }),
+      ),
+      [
+        {
+          code: "S9",
+          severity: "warning",
+          node: "v1",
+          field: "desc",
+          message:
+            "`desc` has a line break; keep it to one line of 120 or fewer",
+        },
+      ],
+    );
+  });
+
+  it("raises one S9 for a desc that is long and has a line break", () => {
+    const issues = validateGraph(
+      graphOf({ v1: { ...view, desc: "a".repeat(130) + "\nb" } }),
+    );
+    assert.deepEqual(issues.map(key), ["S9 warning v1"]);
+    assert.match(issues[0].message, /is 132 characters/);
+  });
+
+  it("lists S9 in the rule table as a warning", () => {
+    assert.deepEqual(RULES.S9, {
+      severity: "warning",
+      title: "description is too long or not one line",
+    });
   });
 });

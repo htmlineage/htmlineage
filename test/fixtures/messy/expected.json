@@ -5,13 +5,15 @@
     { "code": "S5", "severity": "warning", "node": "v1", "note": "unknown field `notes`" },
     { "code": "S6", "severity": "warning", "node": "t1", "note": "external source should start with x" },
     { "code": "S7", "severity": "warning", "node": "f2", "note": "no `label`" },
+    { "code": "S7", "severity": "warning", "node": "v2", "note": "no `desc`" },
+    { "code": "S9", "severity": "warning", "node": "f4", "note": "`desc` is 137 characters" },
     { "code": "C2", "severity": "warning", "node": "i1", "note": "bare '1,240' in prose; the '$50' in ungrounded i2 is allowed" },
     { "code": "C3", "severity": "warning", "node": "f1", "note": "display $61.20, page shows $58.90 twice" },
     { "code": "C7", "severity": "warning", "node": "q2", "note": "no `columns`, period not in the SQL as literals, uses current_date. Reported once, as C7, not again as C8" },
     { "code": "C8", "severity": "warning", "node": "v2", "note": "select *. Its uppercase one-line layout is not checked" }
   ],
   "notes": [
-    "No errors. Every warning rule fires once.",
+    "No errors. Every warning rule fires once, and S7 twice (f2 has no label, v2 no desc).",
     "v3 is three views deep and three of the insights are ungrounded. Neither is a check rule.",
     "t1 is external: listed under 'needs attention', not a warning."
   ]

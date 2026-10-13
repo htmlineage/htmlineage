@@ -17,6 +17,8 @@ import {
   nodeState,
   title,
   beats,
+  stepText,
+  stepFacts,
   highlightSql,
   reportSql,
   chainSql,
@@ -838,47 +840,59 @@ describe("title", () => {
 });
 
 describe("beats", () => {
-  it("puts a source alone at step 1", () => {
-    assert.deepEqual(beats(G, "q1"), [{ n: 1, ids: ["q1"] }]);
+  it("gives a clicked source no connector", () => {
+    assert.deepEqual(beats(G, "q1"), [{ word: null, ids: ["q1"] }]);
   });
-  it("puts a view above its source", () => {
+  it('puts "Built on" before each level under the clicked node', () => {
     assert.deepEqual(beats(G, "v1"), [
-      { n: 2, ids: ["v1"] },
-      { n: 1, ids: ["q1"] },
+      { word: null, ids: ["v1"] },
+      { word: "Built on", ids: ["q1"] },
     ]);
   });
   it("stacks a longer chain one step per beat", () => {
     assert.deepEqual(beats(G, "v2"), [
-      { n: 3, ids: ["v2"] },
-      { n: 2, ids: ["v1"] },
-      { n: 1, ids: ["q1"] },
+      { word: null, ids: ["v2"] },
+      { word: "Built on", ids: ["v1"] },
+      { word: "Built on", ids: ["q1"] },
     ]);
   });
-  it("sits each node one above its tallest parent, every source at step 1, in graph order", () => {
+  it('says "Computed as" for a clicked figure, with sources at the bottom, in graph order', () => {
     assert.deepEqual(beats(G, "f3"), [
-      { n: 4, ids: ["f3"] },
-      { n: 3, ids: ["f1"] },
-      { n: 2, ids: ["v1", "f2"] },
-      { n: 1, ids: ["q1", "q2"] },
+      { word: "Computed as", ids: ["f3"] },
+      { word: "Built on", ids: ["f1"] },
+      { word: "Built on", ids: ["v1", "f2"] },
+      { word: "Built on", ids: ["q1", "q2"] },
     ]);
+  });
+  it("gives no connector to a figure with nothing to compute", () => {
+    const graph = {
+      nodes: { f8: { step: "figure", from: [], ungrounded: true, value: 1 } },
+    };
+    assert.deepEqual(beats(graph, "f8"), [{ word: null, ids: ["f8"] }]);
   });
   it("shows a shared ancestor once", () => {
     assert.deepEqual(beats(G, "f6"), [
-      { n: 4, ids: ["f6"] },
-      { n: 3, ids: ["f1", "f5"] },
-      { n: 2, ids: ["v1"] },
-      { n: 1, ids: ["q1"] },
+      { word: "Computed as", ids: ["f6"] },
+      { word: "Built on", ids: ["f1", "f5"] },
+      { word: "Built on", ids: ["v1"] },
+      { word: "Built on", ids: ["q1"] },
     ]);
   });
-  it("puts a parent missing from the graph at step 1, after the known ids", () => {
+  it("puts a parent missing from the graph at the bottom, after the known ids", () => {
     assert.deepEqual(beats(G, "f7"), [
-      { n: 4, ids: ["f7"] },
-      { n: 3, ids: ["f1"] },
-      { n: 2, ids: ["v1"] },
-      { n: 1, ids: ["q1", "f9"] },
+      { word: "Computed as", ids: ["f7"] },
+      { word: "Built on", ids: ["f1"] },
+      { word: "Built on", ids: ["v1"] },
+      { word: "Built on", ids: ["q1", "f9"] },
     ]);
   });
-  it("ends on a cycle, numbering the steps from 1 with no gap", () => {
+  it("gives no connector to a figure whose sql is only whitespace", () => {
+    const graph = {
+      nodes: { f8: { step: "figure", from: [], sql: "  ", value: 1 } },
+    };
+    assert.deepEqual(beats(graph, "f8"), [{ word: null, ids: ["f8"] }]);
+  });
+  it("ends on a cycle", () => {
     const cycle = {
       nodes: {
         f3: { step: "figure", from: ["f4"], expr: "f4 + 1" },
@@ -886,8 +900,8 @@ describe("beats", () => {
       },
     };
     assert.deepEqual(beats(cycle, "f3"), [
-      { n: 2, ids: ["f3"] },
-      { n: 1, ids: ["f4"] },
+      { word: "Computed as", ids: ["f3"] },
+      { word: "Built on", ids: ["f4"] },
     ]);
   });
   it("treats a from that is not a list as no parents", () => {
@@ -898,8 +912,212 @@ describe("beats", () => {
         i1: null,
       },
     };
-    assert.deepEqual(beats(graph, "f1"), [{ n: 1, ids: ["f1"] }]);
-    assert.deepEqual(beats(graph, "i1"), [{ n: 1, ids: ["i1"] }]);
+    assert.deepEqual(beats(graph, "f1"), [{ word: null, ids: ["f1"] }]);
+    assert.deepEqual(beats(graph, "i1"), [{ word: null, ids: ["i1"] }]);
+  });
+});
+
+describe("stepText", () => {
+  it("gives nothing for an id not in the graph", () => {
+    assert.deepEqual(stepText(G, "f9"), { desc: null, note: null, show: null });
+  });
+  it("gives a view its desc, with its SQL closed", () => {
+    const graph = {
+      nodes: { ...G.nodes, v1: { ...G.nodes.v1, desc: "Daily sales totals" } },
+    };
+    assert.deepEqual(stepText(graph, "v1"), {
+      desc: "Daily sales totals",
+      note: null,
+      show: { label: "Show SQL", open: false },
+    });
+  });
+  it("opens the SQL of a step with no desc", () => {
+    assert.deepEqual(stepText(G, "v1"), {
+      desc: null,
+      note: null,
+      show: { label: "Show SQL", open: true },
+    });
+  });
+
+  const withV1 = (over) => ({
+    nodes: { ...G.nodes, v1: { ...G.nodes.v1, ...over } },
+  });
+  it("treats a blank or non-string desc as none", () => {
+    for (const desc of [" ", 7]) {
+      assert.deepEqual(stepText(withV1({ desc }), "v1"), {
+        desc: null,
+        note: null,
+        show: { label: "Show SQL", open: true },
+      });
+    }
+  });
+  it("calls a source's SQL its query", () => {
+    assert.deepEqual(stepText(G, "q1").show, {
+      label: "Show query",
+      open: true,
+    });
+  });
+
+  it("calls an expression figure's SQL its calculation, and a sql figure's its SQL", () => {
+    assert.deepEqual(stepText(G, "f3").show, {
+      label: "Show calculation",
+      open: true,
+    });
+    assert.deepEqual(stepText(G, "f1").show, { label: "Show SQL", open: true });
+  });
+
+  it("shows SQL first for a figure with both sql and expr", () => {
+    const graph = {
+      nodes: {
+        f2: { step: "figure", from: ["v1"], sql: "select 1", expr: "f1 / 3" },
+      },
+    };
+    assert.equal(stepText(graph, "f2").show.label, "Show SQL");
+  });
+  it("gives no toggle to a step with no SQL", () => {
+    const nothing = {
+      nodes: {
+        ...G.nodes,
+        v9: { step: "view", from: [], ungrounded: true },
+        q9: { step: "source", kind: "sql", mart: "m" },
+      },
+    };
+    for (const id of ["x1", "i1", "v9", "q9"]) {
+      assert.equal(stepText(nothing, id).show, null, id);
+    }
+  });
+
+  it("ignores a desc on an external source or an insight", () => {
+    for (const id of ["x1", "i1"]) {
+      const graph = {
+        nodes: { ...G.nodes, [id]: { ...G.nodes[id], desc: "x" } },
+      };
+      assert.equal(stepText(graph, id).desc, null, id);
+    }
+  });
+  it("gives the transform as a note", () => {
+    const graph = {
+      nodes: {
+        ...G.nodes,
+        v1: { ...G.nodes.v1, transform: "Excluded the test-market week" },
+      },
+    };
+    assert.equal(stepText(graph, "v1").note, "Excluded the test-market week");
+  });
+});
+
+describe("stepFacts", () => {
+  it("gives nothing for an id not in the graph", () => {
+    assert.equal(stepFacts(dg(), "f9"), null);
+  });
+  it("gives a sql source's mart, period, how and columns", () => {
+    const d = data({
+      graph: {
+        nodes: {
+          q1: {
+            step: "source",
+            kind: "sql",
+            how: "captured",
+            mart: "marts.sales",
+            period: AUG,
+            columns: ["day", "amount"],
+          },
+        },
+      },
+    });
+    assert.deepEqual(stepFacts(d, "q1"), {
+      kind: "sql",
+      mart: "marts.sales",
+      period: AUG,
+      pinned: true,
+      how: "captured",
+      columns: ["day", "amount"],
+    });
+  });
+
+  it("calls a sql source with a C7 not pinned, and fills what is missing", () => {
+    const d = withIssues([
+      issue("C7", "q1", "SQL uses date functions: current_date"),
+    ]);
+    assert.deepEqual(stepFacts(d, "q1"), {
+      kind: "sql",
+      mart: "marts.sales",
+      period: null,
+      pinned: false,
+      how: null,
+      columns: [],
+    });
+  });
+
+  it("gives an external source's ref and what was given", () => {
+    assert.deepEqual(stepFacts(dg(), "x1"), {
+      kind: "external",
+      ref: "targets.csv",
+      given: null,
+      columns: [],
+    });
+    const given = "Q3 targets by channel";
+    const d = dg({
+      graph: { nodes: { ...G.nodes, x1: { ...G.nodes.x1, given } } },
+    });
+    assert.equal(stepFacts(d, "x1").given, given);
+  });
+
+  it("gives a view's parents, columns and visual", () => {
+    assert.deepEqual(stepFacts(dg(), "v1"), {
+      kind: "view",
+      from: ["q1"],
+      columns: [],
+      visual: "table",
+    });
+  });
+
+  it("gives a sql figure's value, label and what it picks from", () => {
+    assert.deepEqual(stepFacts(dg(), "f1"), {
+      kind: "pick",
+      value: "12",
+      label: "Sales",
+      from: ["v1"],
+    });
+  });
+
+  it("falls back to the value when a figure has no display", () => {
+    const f8 = { step: "figure", from: ["v1"], sql: "select 1", value: 0.5 };
+    const at = (node) =>
+      stepFacts(dg({ graph: { nodes: { ...G.nodes, f8: node } } }), "f8");
+    const first = at(f8);
+    assert.equal(first.value, "0.5");
+    assert.equal(first.label, null);
+    assert.equal(at({ ...f8, value: undefined }).value, null);
+  });
+
+  it("gives an expression figure's value, label and expression", () => {
+    assert.deepEqual(stepFacts(dg(), "f3"), {
+      kind: "formula",
+      value: "8",
+      label: "Margin",
+      expr: "f1 - f2",
+    });
+  });
+
+  it("gives a figure with both sql and expr as a pick", () => {
+    const node = {
+      step: "figure",
+      from: ["v1"],
+      sql: "select 1",
+      expr: "f1 / 3",
+      value: 1,
+    };
+    const d = dg({ graph: { nodes: { ...G.nodes, f8: node } } });
+    assert.equal(stepFacts(d, "f8").kind, "pick");
+  });
+
+  it("gives a claim's text and what it rests on", () => {
+    assert.deepEqual(stepFacts(dg(), "i1"), {
+      kind: "claim",
+      text: "Margin was 8.",
+      from: ["f3"],
+    });
   });
 });
 
@@ -1040,13 +1258,37 @@ describe("exprParts", () => {
 });
 
 describe("lineage: fixtures", () => {
-  it("lays out clean's 11.8% from q1 at step 1 up to f3", () => {
+  it("lays out clean's 11.8% from the top down", () => {
     assert.deepEqual(beats(fx("clean").graph, "f3"), [
-      { n: 4, ids: ["f3"] },
-      { n: 3, ids: ["f1", "f2"] },
-      { n: 2, ids: ["v1"] },
-      { n: 1, ids: ["q1"] },
+      { word: "Computed as", ids: ["f3"] },
+      { word: "Built on", ids: ["f1", "f2"] },
+      { word: "Built on", ids: ["v1"] },
+      { word: "Built on", ids: ["q1"] },
     ]);
+  });
+  it("gives every step of clean a desc, with its SQL closed", () => {
+    const d = fx("clean");
+    for (const [id, node] of Object.entries(d.graph.nodes)) {
+      if (node.step === "insight") continue;
+      const { desc, show } = stepText(d.graph, id);
+      assert.equal(typeof desc, "string", id);
+      assert.ok(desc.length > 0 && [...desc].length <= 120, id);
+      assert.ok(!desc.includes("\n"), id);
+      assert.equal(show.open, false, id);
+    }
+    assert.equal(stepText(d.graph, "f3").show.label, "Show calculation");
+  });
+  it("opens the SQL of messy's step with no desc, and keeps a long desc whole", () => {
+    const d = fx("messy");
+    assert.deepEqual(stepText(d.graph, "v2"), {
+      desc: null,
+      note: null,
+      show: { label: "Show SQL", open: true },
+    });
+    assert.equal(
+      stepText(d.graph, "f4").desc,
+      "Counts every site session in the web sessions mart over the 30 days before the report ran, across all channels, devices and landing pages",
+    );
   });
   it("copies clean's SQL as trailline sql does", () => {
     const d = fx("clean");
@@ -1163,10 +1405,10 @@ describe("lineage: fixtures", () => {
       { node: "f1", page: ["$58.90"], graph: "$61.20" },
     ]);
     const status = checkStatus(d);
-    assert.equal(status.line, "check · 7 notes");
+    assert.equal(status.line, "check · 9 notes");
     assert.deepEqual(
       status.issues.map((i) => i.code),
-      ["S6", "S5", "S7", "C2", "C3", "C7", "C8"],
+      ["S6", "S5", "S7", "S7", "S9", "C2", "C3", "C7", "C8"],
     );
     assert.equal(status.reason, null);
   });
@@ -1264,8 +1506,8 @@ describe("lineage: fixtures", () => {
   });
   it("lays out broken's cycle without hanging", () => {
     assert.deepEqual(beats(fx("broken").graph, "f3"), [
-      { n: 2, ids: ["f3"] },
-      { n: 1, ids: ["f4"] },
+      { word: "Computed as", ids: ["f3"] },
+      { word: "Built on", ids: ["f4"] },
     ]);
   });
 });

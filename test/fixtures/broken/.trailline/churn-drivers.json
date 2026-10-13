@@ -5,6 +5,7 @@
     "q1": {
       "step": "source",
       "kind": "sql",
+      "desc": "Monthly churned and starting subscriptions for each plan, July and August 2026",
       "how": "reported",
       "mart": "marts.subscription_churn",
       "period": { "from": "2026-07-01", "to": "2026-08-31" },
@@ -13,6 +14,7 @@
     },
     "v1": {
       "step": "view",
+      "desc": "August churn for each plan: subscriptions lost over subscriptions at the start of the month",
       "from": ["q1"],
       "sql": "-- Churn rate by plan, August 2026\nselect\n    plan,\n    churned / active_start as churn_rate\nfrom q1\nwhere churn_month = '2026-08-01'",
       "columns": ["plan", "churn_rate"],
@@ -20,12 +22,14 @@
     },
     "v2": {
       "step": "view",
+      "desc": "July churn for each plan: subscriptions lost over subscriptions at the start of the month",
       "from": ["q1"],
       "sql": "-- Churn rate by plan, July 2026\nselect\n    plan,\n    churned / active_start as churn_rate\nfrom q1\nwhere churn_month = '2026-07-01'",
       "columns": ["plan", "churn_rate"]
     },
     "f1": {
       "step": "figure",
+      "desc": "The monthly plan's churn rate in August 2026",
       "from": ["v1"],
       "sql": "select churn_rate\nfrom v1\nwhere plan = 'monthly'",
       "value": 0.048,
@@ -34,6 +38,7 @@
     },
     "f2": {
       "step": "figure",
+      "desc": "The annual plan's churn rate in August 2026",
       "from": ["v1"],
       "sql": "select churn_rate\nfrom v1\nwhere plan = 'annual'",
       "expr": "f1 / 3",
@@ -43,6 +48,7 @@
     },
     "f3": {
       "step": "figure",
+      "desc": "One more than the doubled churned-plans figure",
       "from": ["f4"],
       "expr": "f4 + 1",
       "value": 3,
@@ -51,6 +57,7 @@
     },
     "f4": {
       "step": "figure",
+      "desc": "Twice the adjusted churned-plans figure",
       "from": ["f3"],
       "expr": "f3 * 2",
       "value": 2,
@@ -59,6 +66,7 @@
     },
     "f5": {
       "step": "figure",
+      "desc": "The monthly plan's churn rate multiplied by itself",
       "from": ["f1"],
       "expr": "(f1 * f1",
       "value": 0.0023,

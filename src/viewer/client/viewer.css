@@ -39,7 +39,7 @@
   --nav-h: 46px;
   --panel-w: 560px;
   --gut: 24px; /* panel gutter */
-  --margin: 34px; /* step-number column */
+  --margin: 14px; /* left of the commit rail */
   --track: 30px; /* commit rail column */
 }
 
@@ -115,7 +115,7 @@ svg {
 /* ---------- app frame ---------- */
 .app {
   display: grid;
-  grid-template-rows: var(--rail-h) minmax(0, 1fr);
+  grid-template-rows: var(--rail-h) minmax(0, 1fr) auto;
   height: 100vh;
   height: 100dvh;
 }
@@ -691,25 +691,13 @@ button.id:hover {
 .score-h .h {
   margin: 0;
 }
-.score-h .read {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  color: var(--ink-3);
-  font-size: 12px;
-  white-space: nowrap;
-}
-.score-h .read svg {
-  width: 11px;
-  height: 11px;
-  stroke-width: 1.6;
-}
 
 .row {
   --row-bg: var(--paper);
   position: relative;
   display: grid;
-  grid-template-columns: var(--margin) var(--track) minmax(0, 1fr);
+  grid-template-columns: var(--track) minmax(0, 1fr);
+  padding-left: var(--margin);
   background: var(--row-bg);
   transition: background-color 0.12s;
 }
@@ -721,13 +709,6 @@ button.id:hover {
 .row.band {
   --row-bg: var(--band);
 }
-.row .n {
-  font: 500 11.5px/1 var(--f-mono);
-  color: var(--ink-3);
-  text-align: right;
-  padding: 18px 6px 0 0;
-}
-
 /* the rail: a 2px line from the first commit to the last */
 .row .st {
   position: relative;
@@ -797,23 +778,6 @@ button.id:hover {
     0 0 0 3px var(--row-bg);
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  @keyframes pop {
-    from {
-      opacity: 0;
-      scale: 0.2;
-    }
-    to {
-      opacity: 1;
-      scale: 1;
-    }
-  }
-  .score.rise .blk {
-    animation: pop 0.42s var(--ease-out) both;
-    animation-delay: calc(var(--i, 0) * 55ms);
-  }
-}
-
 .step {
   min-width: 0;
   padding: 14px var(--gut) 16px 10px;
@@ -846,6 +810,59 @@ button.id:hover {
 }
 .step-h .fig:empty {
   display: none;
+}
+
+.conn {
+  margin-bottom: 8px;
+  color: var(--ink-3);
+  font: 500 11.5px/1 var(--f-mono);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.facts {
+  margin-top: 8px;
+  color: var(--ink-2);
+  font: 400 12px/1.5 var(--f-mono);
+}
+.facts.warn {
+  color: var(--warn-ink);
+}
+.desc {
+  margin-top: 8px;
+  color: var(--ink);
+  font-size: 13px;
+  line-height: 1.5;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.desc.full {
+  white-space: normal;
+  overflow: visible;
+  text-wrap: pretty;
+}
+.tog {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+  padding: 2px 0;
+  border: 0;
+  background: none;
+  color: var(--ink-2);
+  font: 500 12px/1.4 var(--f-mono);
+}
+.tog:hover {
+  color: var(--ink);
+}
+.tog svg {
+  width: 12px;
+  height: 12px;
+  stroke-width: 1.6;
+  transition: rotate 0.2s var(--ease-out);
+}
+.tog[aria-expanded="true"] svg {
+  rotate: 90deg;
 }
 
 .reads {
@@ -1039,22 +1056,11 @@ button.id:hover {
   visibility: hidden;
 }
 
-.end {
-  padding: 12px var(--gut) 32px calc(var(--margin) + var(--track) + 10px);
-  color: var(--ink-3);
-  font-size: 12px;
-  line-height: 1.6;
-  text-wrap: pretty;
-}
-.end:empty {
-  padding-bottom: 20px;
-}
-
 /* ---------- toast ---------- */
 .toast {
   position: fixed;
   right: 20px;
-  bottom: 20px;
+  bottom: 52px;
   z-index: 10;
   padding: 10px 14px;
   border-radius: 3px;
@@ -1081,6 +1087,14 @@ button.id:hover {
   }
 }
 
+/* ---------- the status bar ---------- */
+.status {
+  position: relative;
+  z-index: 5;
+  background: var(--field);
+  border-top: 1px solid var(--rule);
+}
+
 /* ---------- narrower screens ---------- */
 @media (max-width: 980px) {
   :root {
@@ -1091,11 +1105,19 @@ button.id:hover {
 @media (max-width: 760px) {
   :root {
     --gut: 16px;
-    --margin: 26px;
+    --margin: 8px;
+    --status-h: 36px;
   }
   .app {
     display: block;
     height: auto;
+    padding-bottom: var(--status-h);
+  }
+  .status {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
   }
   .rail {
     flex-wrap: wrap;
@@ -1151,9 +1173,6 @@ button.id:hover {
     grid-column: 2;
     text-align: left;
   }
-  .score-h .read {
-    display: none;
-  }
   .step-h {
     flex-wrap: wrap;
     row-gap: 6px;
@@ -1167,17 +1186,13 @@ button.id:hover {
   .toast {
     left: 16px;
     right: 16px;
-    bottom: 16px;
+    bottom: 52px;
     text-align: center;
   }
 }
 
 /* ---------- the status bar ---------- */
 .statusbar {
-  position: sticky;
-  bottom: 0;
-  background: var(--field);
-  border-top: 1px solid var(--rule);
   font-size: 12px;
   color: var(--ink-3);
 }
@@ -1206,10 +1221,16 @@ button.id:hover {
   color: var(--stop);
 }
 .statusbar .drawer {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 100%;
   max-height: 40vh;
   overflow-y: auto;
   padding: 4px var(--gut);
-  border-bottom: 1px solid var(--rule-soft);
+  background: var(--field);
+  border-top: 1px solid var(--rule);
+  box-shadow: 0 -8px 20px rgb(0 0 0 / 0.08);
 }
 .statusbar .drawer li {
   display: flex;
