@@ -239,6 +239,43 @@ describe("groundOf", () => {
     });
     assert.equal(groundOf(d, "f3"), "none");
   });
+  it("calls a file chain broken by a missing parent none", () => {
+    const d = dg({
+      graph: {
+        nodes: {
+          ...G.nodes,
+          f8: { step: "figure", from: ["x1", "gone"], expr: "x1 + gone" },
+        },
+      },
+      trace: { ...TRACE_G, f8: "partial" },
+    });
+    assert.equal(groundOf(d, "f8"), "none");
+  });
+  it("calls a cycle that also reaches a file none", () => {
+    const d = data({
+      graph: {
+        nodes: {
+          x1: G.nodes.x1,
+          f3: { step: "figure", from: ["x1", "f4"], expr: "x1 + f4" },
+          f4: { step: "figure", from: ["f3"], expr: "f3 * 2" },
+        },
+      },
+      trace: { f3: "partial", f4: "partial" },
+    });
+    assert.equal(groundOf(d, "f3"), "none");
+  });
+  it("still finds a file when two paths meet on it", () => {
+    const d = dg({
+      graph: {
+        nodes: {
+          ...G.nodes,
+          f8: { step: "figure", from: ["f4", "x1"], expr: "f4 + x1" },
+        },
+      },
+      trace: { ...TRACE_G, f8: "partial" },
+    });
+    assert.equal(groundOf(d, "f8"), "file");
+  });
 });
 
 // A summary carrying these issues.

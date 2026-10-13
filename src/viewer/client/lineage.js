@@ -29,16 +29,24 @@ export function nodeState(data, id) {
   return data.trace[id] || "partial";
 }
 
-/** Every node under `id`, `id` included; a cycle or missing parent ends the walk. */
+/**
+ * Every node under `id`, `id` included, and whether the walk met a cycle or a
+ * missing parent on the way.
+ */
 function underneath(nodes, id) {
   const seen = new Set();
+  const path = new Set();
+  let broken = false;
   const walk = (x) => {
-    if (seen.has(x) || !nodes[x]) return;
+    if (!nodes[x] || path.has(x)) return void (broken = true);
+    if (seen.has(x)) return;
     seen.add(x);
+    path.add(x);
     for (const parent of nodes[x].from ?? []) walk(parent);
+    path.delete(x);
   };
   walk(id);
-  return [...seen];
+  return { ids: [...seen], broken };
 }
 
 /**
@@ -52,7 +60,9 @@ export function groundOf(data, id) {
   if (!nodes[id]) return "none";
   if (data.trace[id] === "full") return "sql";
   if (data.trace[id] === "ungrounded") return "none";
-  const file = underneath(nodes, id).some(
+  const { ids, broken } = underneath(nodes, id);
+  if (broken) return "none";
+  const file = ids.some(
     (x) => nodes[x].step === "source" && nodes[x].kind === "external",
   );
   return file ? "file" : "none";
@@ -131,7 +141,7 @@ export function builtOn(data) {
     .filter(([, node]) => node.step === "source")
     .map(([id, node]) => {
       const numbers = figures.filter((f) =>
-        underneath(nodes, f).includes(id),
+        underneath(nodes, f).ids.includes(id),
       ).length;
       if (node.kind !== "sql") {
         return { node: id, kind: "external", name: node.ref ?? null, numbers };
@@ -149,7 +159,7 @@ export function builtOn(data) {
 
 /** The rows of `builtOn` for the sources under `id`, `id` included. */
 export function builtFrom(data, id) {
-  const under = underneath(nodesOf(data.graph), id);
+  const under = underneath(nodesOf(data.graph), id).ids;
   return builtOn(data).filter((row) => under.includes(row.node));
 }
 

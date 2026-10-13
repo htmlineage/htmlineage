@@ -134,9 +134,12 @@ const STATE_WORD = {
 // A source's name and what the reviewer should know about its period.
 const sourceRow = (row, { count }) => {
   const mart = row.kind === "sql";
+  const numbers = count
+    ? ` · ${row.numbers} number${row.numbers === 1 ? "" : "s"}`
+    : "";
   const when = mart
-    ? `${row.period ? esc(period(row.period)) : "No period"}${row.pinned ? "" : " · not pinned"}${count ? ` · ${row.numbers} number${row.numbers === 1 ? "" : "s"}` : ""}`
-    : "external file";
+    ? `${row.period ? esc(period(row.period)) : "No period"}${row.pinned ? "" : " · not pinned"}${numbers}`
+    : `external file${numbers}`;
   return `<li>${sw(mart ? "full" : "partial")}<span class="what"><code>${wb(row.name ?? "(no name)")}</code></span><span class="when${mart && !row.pinned ? " warn" : ""}">${when}</span></li>`;
 };
 
