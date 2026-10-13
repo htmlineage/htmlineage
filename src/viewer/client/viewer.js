@@ -5,18 +5,22 @@ import {
   exprParts,
   isArithmetic,
   beats,
+  builtFrom,
+  builtOn,
   chainSql,
+  checkStatus,
   copyText,
   fromReport,
+  groundOf,
+  grounding,
+  headline,
   highlightSql,
-  needsAttention,
-  nodeState,
+  mismatches,
   nodesOf,
-  overview,
   reportSql,
-  reviewerWording,
   stepSql,
   title,
+  untraced,
 } from "./lineage.js";
 
 const $ = (sel, root = document) => root.querySelector(sel);
@@ -45,7 +49,6 @@ const ICON = {
 const S = {
   fx: null,
   nodes: {},
-  issues: {},
   usedBy: {},
   sel: null,
   history: [],
@@ -54,13 +57,12 @@ const S = {
   upOpen: new Set(),
   counts: {},
   cycle: {},
+  drawer: false,
 };
 
 function load(fx) {
   S.fx = fx;
   S.nodes = nodesOf(fx.graph);
-  S.issues = {};
-  for (const i of fx.summary.issues || []) (S.issues[i.node] ||= []).push(i);
   S.usedBy = {};
   for (const [id, n] of Object.entries(S.nodes))
     for (const p of n.from || []) (S.usedBy[p] ||= []).push(id);
@@ -70,6 +72,7 @@ function load(fx) {
   S.showUses = false;
   S.upOpen = new Set();
   S.cycle = {};
+  S.drawer = false;
 }
 
 // ---------- reading the graph ----------
@@ -80,7 +83,9 @@ const STEP = {
   insight: "Claim",
 };
 const stepWord = (id) => STEP[S.nodes[id]?.step] || "Missing";
-const state = (id) => nodeState(S.fx, id);
+// The swatch class for what a node rests on.
+const SWATCH = { sql: "full", file: "partial", none: "ungrounded" };
+const state = (id) => SWATCH[groundOf(S.fx, id)];
 const val = (id) => {
   const n = S.nodes[id];
   return n ? String(n.display ?? n.value ?? "") : "";
@@ -95,16 +100,6 @@ const visual = (id) => {
   return v ? (v === "table" ? "table" : `${v} chart`) : "view";
 };
 
-function ancestors(id) {
-  const out = new Set();
-  const walk = (x) => {
-    if (out.has(x)) return;
-    out.add(x);
-    for (const p of S.nodes[x]?.from || []) walk(p);
-  };
-  walk(id);
-  return out;
-}
 const fmtDate = (d) => {
   const [y, m, day] = String(d).split("-").map(Number);
   if (!y || !m || !day) return esc(d);
@@ -119,17 +114,7 @@ const fmtDate = (d) => {
 const wb = (s) => esc(s).replace(/([._])/g, "$1<wbr>");
 const period = (p) => (p ? `${fmtDate(p.from)} – ${fmtDate(p.to)}` : "");
 
-// ---------- warnings, in the reviewer's words ----------
 const codeify = (s) => esc(s).replace(/`([^`]+)`/g, "<code>$1</code>");
-const warnList = (id) => {
-  const iss = S.issues[id];
-  if (!iss?.length) return "";
-  const words = iss.map((i) => ({ code: i.code, ...reviewerWording(i) }));
-  const sorted = words.sort(
-    (a, b) => (b.tone !== "note") - (a.tone !== "note"),
-  );
-  return `<ul class="warns">${sorted.map((w) => `<li class="${w.tone}"><span class="code">${esc(w.code)}</span><span>${w.html}</span></li>`).join("")}</ul>`;
-};
 
 // ---------- small renderers ----------
 const idBtn = (id) =>
@@ -141,10 +126,29 @@ const sw = (st) => `<span class="sw ${st}" aria-hidden="true"></span>`;
 const copyBtn = (attr, id, { sql, reason }, label, tip) =>
   `<button class="btn" type="button" ${attr}="${esc(id)}" ${sql === null ? "disabled" : ""} title="${esc(reason ?? tip)}">${ICON.copy}${label}</button>`;
 const STATE_WORD = {
-  full: "Traced to SQL",
-  partial: "Rests on an external source",
-  ungrounded: "Nothing recorded behind it",
+  sql: "Traced to the warehouse",
+  file: "Rests on a file",
+  none: "Nothing behind it",
 };
+
+// A source's name and what the reviewer should know about its period.
+const sourceRow = (row, { count }) => {
+  const mart = row.kind === "sql";
+  const when = mart
+    ? `${row.period ? esc(period(row.period)) : "No period"}${row.pinned ? "" : " · not pinned"}${count ? ` · ${row.numbers} number${row.numbers === 1 ? "" : "s"}` : ""}`
+    : "external file";
+  return `<li>${sw(mart ? "full" : "partial")}<span class="what"><code>${wb(row.name ?? "(no name)")}</code></span><span class="when${mart && !row.pinned ? " warn" : ""}">${when}</span></li>`;
+};
+
+const C3_WORDS =
+  "Recalculate this number: the figure in the graph does not match the one on the screen";
+const c3Values = (m) =>
+  [
+    m.page.length ? `page ${m.page.join(", ")}` : "",
+    m.graph !== null ? `graph ${m.graph}` : "",
+  ]
+    .filter(Boolean)
+    .join(" · ");
 
 function snippet(id) {
   const n = S.nodes[id];
@@ -246,81 +250,52 @@ function stepRow(id, { beatStart, n, lane, isTop, i }) {
       <article class="step" aria-label="${esc(stepWord(id))} ${esc(id)}">
         <div class="step-h${node?.step === "source" ? " src" : ""}">${idBtn(id)}<span class="kind">${esc(stepWord(id))}</span><span class="ttl">${ttl}</span>${fig(id)}</div>
         ${body(id, isTop)}
-        ${warnList(id)}
       </article>
     </div>`;
 }
 
 // ---------- default state: the summary ----------
+// A row that opens a node, or plain text when it has none.
+const goRow = (node, swatch, html) =>
+  node === null
+    ? `<li><div class="plain">${sw(swatch)}<span class="what">${html}</span></div></li>`
+    : `<li><button type="button" data-go="${esc(node)}" data-from-summary>${sw(swatch)}<span class="id">${esc(node)}</span><span class="what">${html}</span></button></li>`;
+
+const NOT_TRACED = {
+  figure: "Number",
+  bare: "Number in the text",
+  claim: "Claim",
+};
+
 function renderSummary() {
-  const sum = S.fx.summary;
-  const c = sum.counts;
-  const { lede, sub } = overview(S.fx);
-
-  const split = (step) => {
-    const ids = Object.keys(S.nodes).filter((id) => S.nodes[id].step === step);
-    const by = { full: 0, partial: 0, ungrounded: 0 };
-    ids.forEach((id) => by[state(id)]++);
-    return { total: ids.length, by };
-  };
-  const rows = [
-    ["insight", "Claims", 4],
-    ["figure", "Figures", 3],
-    ["view", "Views", 2],
-    ["source", "Sources", 1],
-  ]
-    .map(([step, name, k]) => {
-      const { total, by } = split(step);
-      const words =
-        step === "source"
-          ? [
-              ["full", `${by.full} SQL`],
-              ["partial", `${c.sources.external} external`],
-            ]
-          : step === "view"
-            ? [["full", `${c.views.shown} on the page`]]
-            : [
-                ["full", `${by.full} traced`],
-                ["partial", `${by.partial} external`],
-                ["ungrounded", `${by.ungrounded} nothing behind`],
-              ];
-      const bar = total
-        ? ["full", "partial", "ungrounded"]
-            .map((s) =>
-              by[s] ? `<i class="${s}" style="flex:${by[s]}"></i>` : "",
-            )
-            .join("")
-        : "";
-      return `<div class="key-row"><div class="num">${k}</div><div class="staff"><span class="bar">${bar}</span></div>
-        <div class="what"><b>${total}</b><span class="step-n">${name}</span><span class="split">${words
-          .filter(([s, w]) => !/^0 /.test(w) || s === "full")
-          .map(([s, w]) => `<span>${sw(s)}${esc(w)}</span>`)
-          .join("")}</span></div></div>`;
-    })
+  const lines = headline(grounding(S.fx));
+  const built = builtOn(S.fx);
+  const checks = mismatches(S.fx);
+  const open = untraced(S.fx);
+  const lede = [lines.numbers, lines.claims]
+    .filter(Boolean)
+    .map((l) => `<p class="lede-sub">${esc(l)}</p>`)
     .join("");
-
-  // Needs attention: what the reviewer should look at first.
-  const { items: att, notes } = needsAttention(sum);
-
-  const attHtml = att.length
-    ? `<ul class="attn">${att.map((a) => (a.node === null ? `<li><div class="plain"><span class="sw ${a.swatch}"></span><span class="what"><span class="tag ${a.tone}">${esc(a.tag)}.</span> ${a.html}</span></div></li>` : `<li><button type="button" data-go="${esc(a.node)}" data-from-summary><span class="sw ${a.swatch}"></span><span class="id">${esc(a.node)}</span><span class="what"><span class="tag ${a.tone}">${esc(a.tag)}.</span> ${a.html}</span></button></li>`)).join("")}</ul>`
-    : `<p class="calm">${sw("full")}<span>Nothing needs attention. Every number and claim traces back to a SQL source, and <code>check</code> raised no warnings.</span></p>`;
-  const notesHtml = notes.length
-    ? `<details class="notes"><summary>${ICON.chev}${notes.length} note${notes.length > 1 ? "s" : ""} for the builder</summary><ul>${notes.map((i) => `<li>${idBtn(i.node)}<span><b>${esc(i.code)}</b> ${codeify(i.message)}</span></li>`).join("")}</ul></details>`
-    : "";
-
-  return `<div class="sec">
-        <p class="lede">${esc(lede)}</p>
-        <p class="lede-sub">${esc(sub)}</p>
-        <div class="key" role="table" aria-label="What the report rests on, by step">${rows}</div>
-        <div class="key-legend"><span>${sw("full")}Traced to SQL</span><span>${sw("partial")}External</span><span>${sw("ungrounded")}Nothing behind it</span></div>
-      </div>
-      <div class="sec">
-        <h2 class="h">Needs attention <small>${att.length || "none"}</small></h2>
-        ${attHtml}
-        ${notesHtml}
-      </div>
+  return `<div class="sec">${lede}</div>
+      ${built.length ? `<div class="sec"><h2 class="h">Built on</h2><ul class="built">${built.map((r) => sourceRow(r, { count: true })).join("")}</ul></div>` : ""}
+      ${checks.length ? `<div class="sec"><h2 class="h">Check these numbers <small>${checks.length}</small></h2><ul class="attn">${checks.map((m) => goRow(m.node, "stopw", `<b>${C3_WORDS}.</b> <span class="muted">${esc(c3Values(m))}</span>`)).join("")}</ul></div>` : ""}
+      ${open.length ? `<div class="sec"><h2 class="h">Not traced <small>${open.length}</small></h2><ul class="attn">${open.map((u) => goRow(u.node, "ungrounded", `${NOT_TRACED[u.kind]}${u.kind === "bare" && u.node ? ` in ${esc(u.node)}` : ""}: ${esc(u.text ?? "")}`)).join("")}</ul></div>` : ""}
       <p class="prompt">${ICON.point}<span>Click any number, sentence, table or chart in the report to see how it was computed.</span></p>`;
+}
+
+// ---------- the status bar ----------
+function statusBar() {
+  const { line, issues, reason } = checkStatus(S.fx);
+  const drawer =
+    S.drawer && issues.length
+      ? `<ul class="drawer">${issues.map((i) => `<li>${i.node && S.nodes[i.node] ? idBtn(i.node) : ""}<span><b>${esc(i.code)}</b> ${codeify(i.message)}</span></li>`).join("")}</ul>`
+      : "";
+  const label = `${esc(line)}${issues.length ? ` ${ICON.chev}` : ""}`;
+  return `<div class="statusbar${reason ? " bad" : ""}">${drawer}<div class="bar-line">${
+    issues.length
+      ? `<button class="link" type="button" data-status aria-expanded="${S.drawer}">${label}</button>`
+      : `<span>${label}</span>`
+  }${reason ? `<span class="reason">${esc(reason)}</span>` : ""}</div></div>`;
 }
 
 // ---------- selected state ----------
@@ -330,7 +305,7 @@ function renderSelected(id) {
   const step = stepWord(id);
 
   // head: what this is, in plain words
-  const meta = `<div class="head-meta"><span class="id static">${esc(id)}</span><span class="kind">${esc(step)}</span><span class="state">${sw(st)}${esc(STATE_WORD[st])}</span></div>`;
+  const meta = `<div class="head-meta"><span class="id static">${esc(id)}</span><span class="kind">${esc(step)}</span><span class="state">${sw(st)}${esc(STATE_WORD[groundOf(S.fx, id)])}</span></div>`;
   let head = `<div class="head">`;
   if (n.step === "figure") {
     head += `<p class="value">${esc(val(id))}</p><p class="label">${n.label ? esc(n.label) : `<span class="muted">No label was recorded for this number.</span>`}</p>${meta}`;
@@ -347,49 +322,19 @@ function renderSelected(id) {
   } else {
     head += `<p class="claim"><code>${wb(nameOf(id))}</code></p><p class="label muted">${n.kind === "sql" ? esc(period(n.period)) : esc(n.given || "")}</p>${meta}`;
   }
+  const c3 = mismatches(S.fx).find((m) => m.node === id);
+  if (c3)
+    head += `<p class="c3"><b>${C3_WORDS}.</b> <span>${esc(c3Values(c3))}</span></p>`;
   head += `<div class="head-act">
       ${copyBtn("data-copy-chain", id, chainSql(S.fx, id), `Copy SQL for this ${n.step === "insight" ? "claim" : n.step}`, "Every query this rests on, composed into one runnable script")}
       ${pageCount(id) ? `<button class="btn" type="button" data-scroll="${esc(id)}">${ICON.page}Show on the page</button>` : ""}
     </div></div>`;
 
-  // rests on: the overview of the chain
-  const anc = [...ancestors(id)];
-  const items = [];
-  for (const x of anc) {
-    const m = S.nodes[x];
-    if (!m) {
-      items.push(
-        `<li>${sw("ungrounded")}<span class="what"><code>${esc(x)}</code></span><span class="when stop">Not in the graph</span></li>`,
-      );
-      continue;
-    }
-    if (m.step === "source" && m.kind === "sql") {
-      const c7 = (S.issues[x] || []).some((i) => i.code === "C7");
-      items.push(
-        `<li data-jump="${esc(x)}">${sw("full")}<span class="what"><code>${wb(m.mart || "(no mart)")}</code></span><span class="when${c7 ? " warn" : ""}">${m.period ? esc(period(m.period)) : "No period"}${c7 ? " · not pinned" : ""}</span></li>`,
-      );
-    } else if (m.step === "source") {
-      items.push(
-        `<li data-jump="${esc(x)}">${sw("partial")}<span class="what"><code>${esc(m.ref || x)}</code> <span class="muted">external ${esc(m.type || "")}</span></span><span class="when">Can't be traced</span></li>`,
-      );
-    } else if (m.ungrounded) {
-      items.push(
-        `<li data-jump="${esc(x)}">${sw("ungrounded")}<span class="what">${x === id ? "This" : `${esc(x)}, ${esc(stepWord(x).toLowerCase())},`} has no source</span><span class="when stop">Nothing behind it</span></li>`,
-      );
-    }
-  }
-  const nWarn = anc.reduce(
-    (k, x) =>
-      k +
-      (S.issues[x] || []).filter((i) => reviewerWording(i).tone !== "note")
-        .length,
-    0,
-  );
-  const rests = `<div class="rests"><h2 class="h">Rests on</h2><ul>${items.join("")}</ul>${
-    nWarn
-      ? `<p class="foot"><span class="sw"></span>${nWarn} warning${nWarn > 1 ? "s" : ""} in this chain, shown on the step${nWarn > 1 ? "s" : ""} below.</p>`
-      : ""
-  }</div>`;
+  // built from: the sources under this node
+  const sources = builtFrom(S.fx, id);
+  const rests = sources.length
+    ? `<div class="rests"><h2 class="h">Built from</h2><ul>${sources.map((r) => sourceRow(r, { count: false })).join("")}</ul></div>`
+    : "";
 
   // used by (dashed, above the clicked node)
   const direct = S.usedBy[id] || [];
@@ -464,7 +409,8 @@ function nav() {
 function render({ rise = false, keepScroll = false } = {}) {
   const pane = $("#lineage");
   const top = pane.scrollTop;
-  pane.innerHTML = nav() + (S.sel ? renderSelected(S.sel) : renderSummary());
+  pane.innerHTML =
+    nav() + (S.sel ? renderSelected(S.sel) : renderSummary()) + statusBar();
   if (rise) {
     const sc = $("#score", pane);
     if (sc) {
@@ -602,9 +548,13 @@ function toast(msg) {
 // ---------- events in the panel ----------
 const pane = $("#lineage");
 pane.addEventListener("click", (e) => {
-  const t = e.target.closest("button, [data-jump], a");
+  const t = e.target.closest("button, a");
   if (!t) return;
   if (t.dataset.go) return select(t.dataset.go);
+  if (t.hasAttribute("data-status")) {
+    S.drawer = !S.drawer;
+    return render({ keepScroll: true });
+  }
   if (t.hasAttribute("data-back")) return back();
   if (t.hasAttribute("data-home")) return home();
   if (t.dataset.more) {
@@ -625,19 +575,6 @@ pane.addEventListener("click", (e) => {
     const u = t.dataset.upopen;
     S.upOpen.has(u) ? S.upOpen.delete(u) : S.upOpen.add(u);
     return render({ keepScroll: true });
-  }
-  if (t.dataset.jump) {
-    // a row in "Rests on": bring its step into view and band it
-    const row = pane.querySelector(
-      `#score [data-row="${CSS.escape(t.dataset.jump)}"]`,
-    );
-    if (row) {
-      row.scrollIntoView({ behavior: "smooth", block: "center" });
-      pane
-        .querySelectorAll(".row.band")
-        .forEach((r) => r.classList.remove("band"));
-      row.classList.add("band");
-    }
   }
 });
 // hovering a step bands it, bands what it reads from, and outlines it on the page
@@ -660,11 +597,6 @@ pane.addEventListener("mouseleave", () => {
     .querySelectorAll(".parent-band")
     .forEach((r) => r.classList.remove("parent-band"));
 });
-pane.addEventListener("mouseover", (e) => {
-  const li = e.target.closest("[data-jump]");
-  if (li) li.style.cursor = "pointer";
-});
-
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape" && !e.target.closest("input, select, textarea"))
     back();

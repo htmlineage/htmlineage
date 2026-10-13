@@ -450,128 +450,34 @@ button.id:hover {
 .sec + .sec {
   border-top: 1px solid var(--rule-soft);
 }
-.lede {
-  font: 600 22px/1.25 var(--f-mono);
+.lede-sub {
+  font: 600 18px/1.35 var(--f-mono);
   letter-spacing: -0.02em;
   text-wrap: balance;
 }
-.lede-sub {
-  margin-top: 8px;
-  color: var(--ink-2);
-  text-wrap: pretty;
+.lede-sub + .lede-sub {
+  margin-top: 10px;
 }
-.lede-sub:empty {
-  display: none;
+.built {
+  margin-top: 4px;
 }
-
-/* the key: the four steps as a short commit rail, read upward */
-.key {
-  margin-top: 20px;
-}
-.key-row {
+.built li {
   display: grid;
-  grid-template-columns: var(--margin) var(--track) minmax(0, 1fr);
-}
-.key-row .num {
-  font: 500 11.5px/1 var(--f-mono);
-  color: var(--ink-3);
-  text-align: right;
-  padding: 15px 6px 0 0;
-}
-.key-row .staff {
-  position: relative;
-}
-.key-row .staff::before {
-  content: "";
-  position: absolute;
-  left: 14px;
-  top: 0;
-  bottom: 0;
-  width: 2px;
-  background: var(--graph);
-}
-.key-row:first-child .staff::before {
-  top: 10px;
-}
-.key-row:last-child .staff::before {
-  bottom: 10px;
-}
-.key-row .bar {
-  position: absolute;
-  left: 11px;
-  top: 10px;
-  bottom: 10px;
-  width: 8px;
-  display: flex;
-  flex-direction: column-reverse;
-  gap: 1px;
-  border-radius: 4px;
-  overflow: hidden;
-  box-shadow: 0 0 0 3px var(--paper);
-  background: var(--paper);
-}
-.key-row .bar i {
-  display: block;
-  min-height: 3px;
-}
-.key-row .bar .full {
-  background: var(--node);
-}
-.key-row .bar .partial {
-  background: var(--warn);
-}
-.key-row .bar .ungrounded {
-  background: var(--stop);
-}
-.key-row .what {
-  display: flex;
-  flex-wrap: wrap;
+  grid-template-columns: 9px minmax(0, 1fr) auto;
   align-items: baseline;
-  column-gap: 10px;
-  row-gap: 6px;
-  padding: 10px 0 11px 6px;
-  border-top: 1px solid var(--rule-soft);
+  column-gap: 12px;
+  padding: 9px 0;
 }
-.key-row:first-child .what {
-  border-top: 0;
+.built li + li {
+  border-top: 1px dashed var(--rule);
 }
-.key-row .what b {
-  font: 600 18px/1 var(--f-mono);
-  letter-spacing: -0.02em;
-  color: var(--num);
-  min-width: 1.6ch;
-}
-.key-row .what .step-n {
-  font: 500 13px/1 var(--f-mono);
-  text-transform: lowercase;
-  margin-right: 6px;
-}
-.key-row .what .split {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 14px;
+.built .when {
   color: var(--ink-2);
-  font-size: 12px;
+  font-size: 12.5px;
+  text-align: right;
 }
-.key-row .what .split > span {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  white-space: nowrap;
-}
-.key-legend {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px 18px;
-  margin-top: 12px;
-  padding-left: calc(var(--margin) + var(--track) + 6px);
-  color: var(--ink-3);
-  font-size: 12px;
-}
-.key-legend > span {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
+.built .when.warn {
+  color: var(--warn);
 }
 
 /* needs attention */
@@ -634,64 +540,6 @@ button.id:hover {
   background: var(--act);
   color: var(--on-act);
 }
-.calm {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-  color: var(--ink-2);
-  text-wrap: pretty;
-}
-
-.notes {
-  margin-top: 14px;
-}
-.notes summary {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  list-style: none;
-  cursor: pointer;
-  color: var(--ink-3);
-  font-size: 12px;
-  padding: 4px 0;
-  border-radius: 3px;
-}
-.notes summary::-webkit-details-marker {
-  display: none;
-}
-.notes summary svg {
-  width: 12px;
-  height: 12px;
-  transition: rotate 0.2s var(--ease-out);
-}
-.notes[open] summary svg {
-  rotate: 90deg;
-}
-.notes summary:hover {
-  color: var(--ink);
-}
-.notes ul {
-  margin-top: 8px;
-}
-.notes li {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-  padding: 6px 0;
-  color: var(--ink-3);
-  font-size: 12px;
-  line-height: 1.55;
-}
-.notes li + li {
-  border-top: 1px dashed var(--rule-soft);
-}
-.notes li b {
-  color: var(--ink-2);
-}
-.notes li code {
-  color: var(--ink-2);
-}
-
 .prompt {
   display: flex;
   align-items: center;
@@ -817,20 +665,6 @@ button.id:hover {
   text-decoration-thickness: 1px;
   text-underline-offset: 3px;
 }
-.rests .foot {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-top: 4px;
-  padding-top: 10px;
-  border-top: 1px solid var(--rule);
-  color: var(--warn);
-  font-size: 12.5px;
-}
-.rests .foot .sw {
-  background: var(--warn);
-}
-
 /* ---------- used by ---------- */
 .uses {
   padding: 16px var(--gut) 4px;
@@ -1137,45 +971,6 @@ button.id:hover {
 }
 
 /* warnings */
-.warns {
-  margin-top: 10px;
-  display: grid;
-  gap: 6px;
-}
-.warns li {
-  display: flex;
-  gap: 8px;
-  padding: 7px 10px;
-  border-radius: 3px;
-  font-size: 12.5px;
-  line-height: 1.55;
-  text-wrap: pretty;
-}
-.warns li .code {
-  font-weight: 700;
-  flex: none;
-}
-.warns li code,
-.warns li b {
-  color: inherit;
-}
-.warns li.stop {
-  background: var(--stop-wash);
-  color: var(--stop-ink);
-}
-.warns li.warn {
-  background: var(--warn-wash);
-  color: var(--warn-ink);
-}
-.warns li.note {
-  padding: 2px 0;
-  background: none;
-  color: var(--ink-3);
-}
-.warns li.note code {
-  color: var(--ink-2);
-}
-
 /* used-by rows: the same graph, dashed, with hollow grey commits */
 .uses-list {
   margin-top: 10px;
@@ -1348,6 +1143,14 @@ button.id:hover {
     text-align: left;
     white-space: normal;
   }
+  .built li {
+    grid-template-columns: 9px minmax(0, 1fr);
+    row-gap: 2px;
+  }
+  .built .when {
+    grid-column: 2;
+    text-align: left;
+  }
   .score-h .read {
     display: none;
   }
@@ -1367,4 +1170,66 @@ button.id:hover {
     bottom: 16px;
     text-align: center;
   }
+}
+
+/* ---------- the status bar ---------- */
+.statusbar {
+  position: sticky;
+  bottom: 0;
+  background: var(--field);
+  border-top: 1px solid var(--rule);
+  font-size: 12px;
+  color: var(--ink-3);
+}
+.statusbar .bar-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 14px;
+  padding: 8px var(--gut);
+}
+.statusbar .link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+.statusbar .link svg {
+  width: 12px;
+  height: 12px;
+  transition: rotate 0.2s var(--ease-out);
+}
+.statusbar .link[aria-expanded="true"] svg {
+  rotate: -90deg;
+}
+.statusbar .reason {
+  color: var(--stop);
+}
+.statusbar .drawer {
+  max-height: 40vh;
+  overflow-y: auto;
+  padding: 4px var(--gut);
+  border-bottom: 1px solid var(--rule-soft);
+}
+.statusbar .drawer li {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 6px 0;
+  line-height: 1.55;
+}
+.statusbar .drawer li + li {
+  border-top: 1px dashed var(--rule-soft);
+}
+.statusbar .drawer b {
+  color: var(--ink-2);
+}
+.c3 {
+  margin-top: 12px;
+  color: var(--warn-ink);
+  background: var(--warn-wash);
+  padding: 7px 10px;
+  border-radius: 3px;
+  font-size: 12.5px;
+  line-height: 1.55;
 }
