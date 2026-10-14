@@ -132,7 +132,7 @@ const STATE_WORD = {
 const sourceRow = (row, { count }) => {
   const mart = row.kind === "sql";
   const numbers = count
-    ? ` · ${row.numbers} number${row.numbers === 1 ? "" : "s"}`
+    ? ` · ${row.numbers}&nbsp;number${row.numbers === 1 ? "" : "s"}`
     : "";
   const when = mart
     ? `${row.period ? esc(period(row.period)) : "No period"}${row.pinned ? "" : " · not pinned"}${numbers}`
@@ -272,7 +272,11 @@ function renderSummary() {
   const open = untraced(S.fx);
   const lede = [lines.numbers, lines.claims]
     .filter(Boolean)
-    .map((l) => `<p class="lede-sub">${esc(l)}</p>`)
+    .map((l) => {
+      // the first sentence leads; the counts that follow sit quieter under it
+      const [lead, ...more] = l.split(/(?<=\.)\s+/);
+      return `<p class="lede-sub">${esc(lead)}${more.length ? `<span class="lede-more">${esc(more.join(" "))}</span>` : ""}</p>`;
+    })
     .join("");
   return `<div class="sec">${lede}</div>
       ${built.length ? `<div class="sec"><h2 class="h">Built on</h2><ul class="built">${built.map((r) => sourceRow(r, { count: true })).join("")}</ul></div>` : ""}

@@ -456,22 +456,34 @@ button.id:hover {
   text-wrap: balance;
 }
 .lede-sub + .lede-sub {
-  margin-top: 10px;
+  margin-top: 14px;
+}
+.lede-more {
+  display: block;
+  margin-top: 4px;
+  color: var(--ink-2);
+  font: 400 13px/1.5 var(--f-mono);
+  letter-spacing: 0;
 }
 .built {
   margin-top: 4px;
 }
 .built li {
-  display: grid;
-  grid-template-columns: 9px minmax(0, 1fr) auto;
+  display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
-  column-gap: 12px;
+  gap: 2px 12px;
   padding: 9px 0;
+}
+.built .what {
+  flex: 1 1 auto;
+  min-width: 0;
 }
 .built li + li {
   border-top: 1px dashed var(--rule);
 }
 .built .when {
+  margin-left: auto;
   color: var(--ink-2);
   font-size: 12.5px;
   text-align: right;
@@ -815,9 +827,7 @@ button.id:hover {
 .conn {
   margin-bottom: 8px;
   color: var(--ink-3);
-  font: 500 11.5px/1 var(--f-mono);
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  font: 500 12px/1 var(--f-mono);
 }
 .facts {
   margin-top: 8px;
@@ -1165,12 +1175,10 @@ button.id:hover {
     text-align: left;
     white-space: normal;
   }
-  .built li {
-    grid-template-columns: 9px minmax(0, 1fr);
-    row-gap: 2px;
-  }
   .built .when {
-    grid-column: 2;
+    flex-basis: 100%;
+    margin-left: 0;
+    padding-left: 21px;
     text-align: left;
   }
   .step-h {
@@ -1230,7 +1238,6 @@ button.id:hover {
   padding: 4px var(--gut);
   background: var(--field);
   border-top: 1px solid var(--rule);
-  box-shadow: 0 -8px 20px rgb(0 0 0 / 0.08);
 }
 .statusbar .drawer li {
   display: flex;
