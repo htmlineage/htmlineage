@@ -17,8 +17,11 @@ import {
   highlightSql,
   mismatches,
   nodesOf,
+  reportCounts,
   reportSql,
+  selection,
   stepFacts,
+  stepHead,
   stepSql,
   stepText,
   title,
@@ -78,13 +81,7 @@ function load(fx) {
 }
 
 // ---------- reading the graph ----------
-const STEP = {
-  source: "Source",
-  view: "View",
-  figure: "Figure",
-  insight: "Claim",
-};
-const stepWord = (id) => STEP[S.nodes[id]?.step] || "Missing";
+const stepWord = (id) => stepHead(S.fx.graph, id).kind;
 // The swatch class for what a node rests on.
 const SWATCH = { sql: "full", file: "partial", none: "ungrounded" };
 const state = (id) => SWATCH[groundOf(S.fx, id)];
@@ -188,73 +185,68 @@ function formula(f) {
   return `<div class="formula" title="${isArithmetic(f.expr) ? "Arithmetic" : "A SQL expression"} over other numbers"><span class="eq"></span><span>${tokens((t) => idBtn(t))}</span><span class="eq">=</span><span>${tokens((t) => esc(val(t)))}</span><span class="eq">=</span><span class="res res-line">${esc(f.value ?? "")}</span></div>`;
 }
 
+// "N columns", with the names on hover.
+const colsMeta = (cols) =>
+  `<span title="${esc(cols.join(", "))}">${cols.length} column${cols.length === 1 ? "" : "s"}</span>`;
+
 // One step of the chain, in three parts:
-//   line  its desc (how it was computed), or what it is when it has none;
+//   line  its title from stepHead: the desc, or what the step is called;
 //         a source leads with its mart and puts its desc under it
 //   meta  kind, then the facts from its fields, then the SQL toggle
 //   more  a note, the formula, the SQL when open
-// The clicked step drops what the head already shows: id, kind, name, value.
+// The clicked step drops what the head already shows: stepHead gives it no
+// kind or value.
 function stepRow(id, { beatStart, word, lane, isTop }) {
   const n = S.nodes[id];
-  const { desc, note, show } = stepText(S.fx.graph, id);
+  const head = stepHead(S.fx.graph, id, { top: isTop });
+  const { note, show } = stepText(S.fx.graph, id);
   const f = n && !n.ungrounded ? stepFacts(S.fx, id) : null;
   const from = (ids) => (ids || []).map(idBtn).join(" ");
-  const tip = desc ? ` title="${esc(desc)}"` : "";
 
   let line = "";
-  let lineIsDesc = false;
   let sub = "";
   let right = "";
+  let clamped = false;
   const meta = [];
-  if (!isTop) meta.push(`<span class="kind">${esc(stepWord(id))}</span>`);
+  if (head.kind !== null)
+    meta.push(`<span class="kind">${esc(head.kind)}</span>`);
 
   if (!n) {
     line = `<code>${esc(id)}</code>`;
     meta.push(`<span class="stop">not in the graph</span>`);
   } else if (n.ungrounded) {
-    if (!isTop) line = esc(nameOf(id));
+    line = esc(head.title ?? "");
     meta.push(
       `<span class="stop">nothing behind it · ask the builder where it comes from</span>`,
     );
-  } else if (f.kind === "sql" || f.kind === "external") {
-    const name = f.kind === "sql" ? f.mart : f.ref;
-    const said = f.kind === "sql" ? desc : f.given;
-    if (isTop) {
-      line = esc(said ?? "");
-      lineIsDesc = Boolean(said);
-    } else {
-      line = `<code>${wb(name ?? "(no name)")}</code>`;
-      if (said) sub = `<p class="sub"${tip}>${esc(said)}</p>`;
-    }
+  } else {
+    // a source's title is its mart, a name rather than words to clamp
+    clamped = (isTop || n.step !== "source") && Boolean(head.title);
+    line =
+      n.step === "source" && !isTop
+        ? `<code>${wb(head.title ?? "(no name)")}</code>`
+        : esc(head.title ?? "");
+    if (head.sub)
+      sub = `<p class="sub" title="${esc(head.sub)}">${esc(head.sub)}</p>`;
+    if (head.value !== null)
+      right = `<span class="fig">${esc(head.value)}</span>`;
     if (f.kind === "sql") {
       meta.push(
         `<span${f.pinned ? "" : ` class="warn"`}>${esc(f.period ? period(f.period) : "no period")}${f.pinned ? "" : " · not pinned"}</span>`,
       );
       if (f.how) meta.push(esc(f.how));
-    } else {
+    } else if (f.kind === "external") {
       meta.push(
         `<span class="warn">external ${esc(n.type || "file")} · Trailline can't see inside it</span>`,
       );
-    }
-  } else {
-    lineIsDesc = Boolean(desc);
-    line = desc
-      ? esc(desc)
-      : isTop
-        ? ""
-        : esc(f.kind === "claim" ? f.text : nameOf(id));
-    if (!isTop && n.step === "figure")
-      right = `<span class="fig">${esc(val(id))}</span>`;
-    if (f.kind === "view") {
-      if (!isTop)
+      if (f.columns.length) meta.push(colsMeta(f.columns));
+    } else if (f.kind === "view") {
+      if (head.kind !== null)
         right = pageCount(id)
           ? `<button class="link fig-link" type="button" data-scroll="${esc(id)}" title="Show it on the page">${esc(visual(id))}</button>`
           : `<span class="fig small">${esc(visual(id))}</span>`;
       if (f.from.length) meta.push(`from ${from(f.from)}`);
-      if (f.columns.length)
-        meta.push(
-          `<span title="${esc(f.columns.join(", "))}">${f.columns.length} column${f.columns.length === 1 ? "" : "s"}</span>`,
-        );
+      if (f.columns.length) meta.push(colsMeta(f.columns));
     } else if (f.kind === "pick") {
       if (f.from.length) meta.push(`picks from ${from(f.from)}`);
     } else if (f.kind === "claim") {
@@ -270,12 +262,10 @@ function stepRow(id, { beatStart, word, lane, isTop }) {
     }
   }
 
-  // the formula is the calculation, so an expression figure needs no toggle
   const open = show !== null && (S.sqlOpen.get(id) ?? show.open);
-  const toggle = show && f?.kind !== "formula";
-  if (toggle)
+  if (show)
     meta.push(
-      `<button class="tog" type="button" data-sql="${esc(id)}" aria-expanded="${open}">${ICON.chev}${esc(show.label.replace(/^Show /, ""))}</button>`,
+      `<button class="tog" type="button" data-sql="${esc(id)}" aria-expanded="${open}">${ICON.chev}${esc(show.label)}</button>`,
     );
 
   // the clicked step has no kind word, so its facts start the sentence
@@ -288,22 +278,23 @@ function stepRow(id, { beatStart, word, lane, isTop }) {
   let more = "";
   if (note) more += `<p class="reads"><b>Note</b> ${esc(note)}</p>`;
   if (f?.kind === "formula") more += formula(f);
-  if (toggle && open) more += sqlBlock(id);
+  if (open) more += sqlBlock(id);
 
   // a long desc is cut to two lines until its SQL is open; hover shows it whole
-  const clamp = lineIsDesc && !(toggle && open) ? " clamp" : "";
-  const head =
+  const clamp = clamped && !open ? " clamp" : "";
+  const tip = clamp ? ` title="${esc(head.title)}"` : "";
+  const titleRow =
     line || right
-      ? `<div class="step-h">${isTop ? "" : idBtn(id)}<span class="ttl${clamp}"${clamp ? tip : ""}>${line}</span>${right}</div>`
+      ? `<div class="step-h">${isTop ? "" : idBtn(id)}<span class="ttl${clamp}"${tip}>${line}</span>${right}</div>`
       : "";
   // the connector sits on the rail, above the step's card
-  const conn = !isTop && beatStart && word;
+  const conn = word !== null && beatStart;
   return `<div class="row${beatStart ? " beat-start" : " beat-cont"}${isTop ? " is-top" : ""}${conn ? " has-conn" : ""}" data-row="${esc(id)}">
       <div class="st"><span class="blk ${state(id)}${lane ? " r" : ""}${isTop ? " top" : ""}"></span></div>
       <article class="step" aria-label="${esc(stepWord(id))} ${esc(id)}">
         ${conn ? `<p class="conn">${esc(word)}</p>` : ""}
         <div class="card">
-          ${head}${sub}
+          ${titleRow}${sub}
           ${meta.length ? `<p class="meta">${meta.join(`<span class="sep" aria-hidden="true">·</span>`)}</p>` : ""}
           ${more}
         </div>
@@ -349,23 +340,20 @@ function renderSummary() {
 // selected, or a passing message ("Copied to the clipboard").
 const many = (n, one) => `${n} ${one}${n === 1 ? "" : "s"}`;
 function holds() {
-  const { numbers, claims } = grounding(S.fx);
-  const steps = Object.values(S.nodes).map((n) => n.step);
-  const count = (step) => steps.filter((s) => s === step).length;
+  const { numbers, claims, views, sources } = reportCounts(S.fx);
   return [
-    many(numbers.sql + numbers.file + numbers.none, "number"),
-    many(claims.supported + claims.unsupported, "claim"),
-    many(count("view"), "view"),
-    many(count("source"), "source"),
+    many(numbers, "number"),
+    many(claims, "claim"),
+    many(views, "view"),
+    many(sources, "source"),
   ].join(" · ");
 }
-function here(id) {
-  const n = S.nodes[id];
+function here({ id, kind, value, name }) {
   const what =
-    n.step === "figure"
-      ? `<b>${esc(val(id))}</b> ${esc(n.label ?? "")}`
-      : esc(nameOf(id));
-  return `<span class="here" title="${esc(stepWord(id))} ${esc(id)}: ${esc(nameOf(id))}"><span class="here-id">${esc(id)}</span><span class="kind">${esc(stepWord(id))}</span><span class="here-what">${what}</span></span><span class="key"><kbd>Esc</kbd> back</span>`;
+    value === null
+      ? esc(name ?? "")
+      : `<b>${esc(value)}</b> ${esc(name ?? "")}`;
+  return `<span class="here" title="${esc(kind)} ${esc(id)}: ${esc(name ?? "")}"><span class="here-id">${esc(id)}</span><span class="kind">${esc(kind)}</span><span class="here-what">${what}</span></span><span class="key"><kbd>Esc</kbd> back</span>`;
 }
 function statusBar() {
   const { line, issues, reason } = checkStatus(S.fx);
@@ -378,9 +366,9 @@ function statusBar() {
     ? `<button class="link" type="button" data-status aria-expanded="${S.drawer}">${label}</button>`
     : `<span>${label}</span>`;
   const right = S.flash
-    ? `<span class="flash">${esc(S.flash)}</span>`
+    ? `<span class="flash${S.flash.warn ? " warn" : ""}">${esc(S.flash.msg)}</span>`
     : S.sel
-      ? here(S.sel)
+      ? here(selection(S.fx.graph, S.sel))
       : "";
   return `<div class="statusbar${reason ? " bad" : ""}">${drawer}<div class="bar-line">${check}${reason ? `<span class="reason">${esc(reason)}</span>` : ""}<span class="holds">${holds()}</span><span class="bar-r">${right}</span></div></div>`;
 }
@@ -494,7 +482,7 @@ function render({ keepScroll = false } = {}) {
   const pane = $("#lineage");
   const top = pane.scrollTop;
   pane.innerHTML = nav() + (S.sel ? renderSelected(S.sel) : renderSummary());
-  $("#status").innerHTML = statusBar();
+  paintStatus();
   pane.scrollTop = keepScroll ? top : 0;
   paintPage();
   writeHash();
@@ -587,7 +575,7 @@ function execCopy(text) {
 
 async function copy(text, btn) {
   if (!(await copyText(text, { clipboard: navigator.clipboard, execCopy }))) {
-    return toast("Could not copy to the clipboard");
+    return toast("Could not copy to the clipboard", { warn: true });
   }
   if (btn) {
     const old = btn.innerHTML;
@@ -601,17 +589,31 @@ async function copy(text, btn) {
   toast("Copied to the clipboard");
 }
 
-// A passing message: shown at the right of the status bar for a moment, and
-// read out by the live region beside it.
+// The status bar is drawn again when the selection or a message changes;
+// keyboard focus on its button stays put.
+function paintStatus() {
+  const status = $("#status");
+  const focused = status.contains(document.activeElement);
+  status.innerHTML = statusBar();
+  if (focused) $("[data-status]", status)?.focus({ preventScroll: true });
+}
+
+// A message at the right of the status bar for a moment, read out by the live
+// region beside it. A failure is styled as a warning. The region is emptied
+// first so that the same message twice is announced twice.
 let flashT;
-function toast(msg) {
-  S.flash = msg;
-  $("#say").textContent = msg;
-  $("#status").innerHTML = statusBar();
+let sayT;
+function toast(msg, { warn = false } = {}) {
+  S.flash = { msg, warn };
+  const say = $("#say");
+  say.textContent = "";
+  clearTimeout(sayT);
+  sayT = setTimeout(() => (say.textContent = msg), 50);
+  paintStatus();
   clearTimeout(flashT);
   flashT = setTimeout(() => {
     S.flash = null;
-    $("#status").innerHTML = statusBar();
+    paintStatus();
   }, 1800);
 }
 

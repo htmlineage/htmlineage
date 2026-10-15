@@ -423,24 +423,6 @@ button.id:hover {
   text-decoration-color: currentColor;
 }
 
-.stamp {
-  display: inline-block;
-  align-self: flex-start;
-  border: 1px solid currentColor;
-  border-radius: 4px;
-  padding: 3px 7px 2px;
-  font: 600 11px/1 var(--f-mono);
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  white-space: nowrap;
-}
-.stamp.stop {
-  color: var(--stop);
-}
-.stamp.ext {
-  color: var(--ink);
-}
-
 /* ---------- nav ---------- */
 .nav {
   position: sticky;
@@ -993,24 +975,6 @@ button.id:hover {
   font-size: inherit;
   color: var(--ink-2);
 }
-.reads .stamp {
-  margin-right: 6px;
-  vertical-align: 1px;
-}
-
-.ext-body {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 8px;
-  margin-top: 10px;
-}
-.ext-body p {
-  color: var(--ink-2);
-  font-size: 12.5px;
-  line-height: 1.6;
-  text-wrap: pretty;
-}
 
 /* formula: the expression with ids, then with values, then the result */
 .formula {
@@ -1382,6 +1346,9 @@ button.id:hover {
   font-weight: 500;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.statusbar .flash.warn {
+  color: var(--warn);
 }
 .statusbar .drawer {
   position: absolute;
