@@ -1,10 +1,10 @@
 // The viewer page: click a number, see how it was computed, read from the
-// number down to its sources. All the logic with no page in it is in lineage.js; this file is
-// the DOM, the events, the report frame and the clipboard.
+// number down to its sources as an outline of rows that open in place. All
+// the logic with no page in it is in lineage.js; this file is the DOM, the
+// events, the report frame and the clipboard.
 import {
   exprParts,
   isArithmetic,
-  beats,
   builtFrom,
   builtOn,
   chainSql,
@@ -15,8 +15,12 @@ import {
   grounding,
   headline,
   highlightSql,
+  inputRow,
   mismatches,
   nodesOf,
+  outline,
+  outlineKeys,
+  ownCard,
   reportCounts,
   reportSql,
   selection,
@@ -53,29 +57,34 @@ const ICON = {
 const S = {
   fx: null,
   nodes: {},
-  usedBy: {},
   sel: null,
   history: [],
   sqlOpen: new Map(),
+  // the outline rows the reviewer has opened, as keys from `outline`: going
+  // down, and under "what uses this"
+  openDown: new Set(),
+  openUp: new Set(),
   showUses: false,
-  upOpen: new Set(),
   counts: {},
   cycle: {},
   drawer: false,
   flash: null,
 };
 
+// A new selection starts with every row closed.
+function startOver() {
+  S.openDown = new Set();
+  S.openUp = new Set();
+  S.showUses = false;
+}
+
 function load(fx) {
   S.fx = fx;
   S.nodes = nodesOf(fx.graph);
-  S.usedBy = {};
-  for (const [id, n] of Object.entries(S.nodes))
-    for (const p of n.from || []) (S.usedBy[p] ||= []).push(id);
   S.sel = null;
   S.history = [];
   S.sqlOpen = new Map();
-  S.showUses = false;
-  S.upOpen = new Set();
+  startOver();
   S.cycle = {};
   S.drawer = false;
 }
@@ -167,15 +176,6 @@ function sqlBlock(id) {
 // How many places a node has on the page, as the report said when it loaded.
 const pageCount = (id) => S.counts[id] || 0;
 
-// What a node yields, at the right of its row in the used-by list.
-function fig(id) {
-  const n = S.nodes[id];
-  if (n?.step === "figure") return `<span class="fig">${esc(val(id))}</span>`;
-  if (n?.step === "view")
-    return `<span class="fig small">${esc(visual(id))}</span>`;
-  return "";
-}
-
 // The formula of an expression figure: with ids, then values, then the result.
 function formula(f) {
   const tokens = (fn) =>
@@ -189,14 +189,15 @@ function formula(f) {
 const colsMeta = (cols) =>
   `<span title="${esc(cols.join(", "))}">${cols.length} column${cols.length === 1 ? "" : "s"}</span>`;
 
-// One step of the chain, in three parts:
+// One step's card, in three parts:
 //   line  its title from stepHead: the desc, or what the step is called;
 //         a source leads with its mart and puts its desc under it
 //   meta  kind, then the facts from its fields, then the SQL toggle
 //   more  a note, the formula, the SQL when open
 // The clicked step drops what the head already shows: stepHead gives it no
-// kind or value.
-function stepRow(id, { beatStart, word, lane, isTop }) {
+// kind or value. A `bare` card, inside an open row, drops its title line and
+// kind too, which the row above it shows; a source keeps its desc.
+function stepCard(id, { isTop = false, bare = false } = {}) {
   const n = S.nodes[id];
   const head = stepHead(S.fx.graph, id, { top: isTop });
   const { note, show } = stepText(S.fx.graph, id);
@@ -208,7 +209,7 @@ function stepRow(id, { beatStart, word, lane, isTop }) {
   let right = "";
   let clamped = false;
   const meta = [];
-  if (head.kind !== null)
+  if (head.kind !== null && !bare)
     meta.push(`<span class="kind">${esc(head.kind)}</span>`);
 
   if (!n) {
@@ -284,22 +285,63 @@ function stepRow(id, { beatStart, word, lane, isTop }) {
   const clamp = clamped && !open ? " clamp" : "";
   const tip = clamp ? ` title="${esc(head.title)}"` : "";
   const titleRow =
-    line || right
+    !bare && (line || right)
       ? `<div class="step-h">${isTop ? "" : idBtn(id)}<span class="ttl${clamp}"${tip}>${line}</span>${right}</div>`
       : "";
-  // the connector sits on the rail, above the step's card
-  const conn = word !== null && beatStart;
-  return `<div class="row${beatStart ? " beat-start" : " beat-cont"}${isTop ? " is-top" : ""}${conn ? " has-conn" : ""}" data-row="${esc(id)}">
-      <div class="st"><span class="blk ${state(id)}${lane ? " r" : ""}${isTop ? " top" : ""}"></span></div>
-      <article class="step" aria-label="${esc(stepWord(id))} ${esc(id)}">
-        ${conn ? `<p class="conn">${esc(word)}</p>` : ""}
-        <div class="card">
+  return `<div class="card${bare ? " bare" : ""}">
           ${titleRow}${sub}
           ${meta.length ? `<p class="meta">${meta.join(`<span class="sep" aria-hidden="true">·</span>`)}</p>` : ""}
           ${more}
-        </div>
-      </article>
-    </div>`;
+        </div>`;
+}
+
+// ---------- the outline ----------
+// A step's rows, closed until the reviewer opens them. `branch` is the
+// clicked step, then each row opened on the way down to this one; which rows
+// there are, their keys and the caption come from `outline`.
+function rowsHtml(branch, up) {
+  const { label, rows } = outline(S.fx.graph, branch, { up });
+  if (!rows.length) return "";
+  const opened = up ? S.openUp : S.openDown;
+  const onPage = Object.keys(S.counts);
+  const items = rows
+    .map((r) => {
+      const info = inputRow(S.fx, r.id, { onPage });
+      const open = !r.loop && opened.has(r.key);
+      const source = info.kind === "Source";
+      const ttl = source
+        ? `<code>${wb(info.title ?? r.id)}</code>`
+        : esc(info.title ?? "");
+      const meta = [`<span class="kind">${esc(info.kind)}</span>`];
+      if (r.loop)
+        meta.push(`<span class="stop">loops back to ${esc(r.id)}</span>`);
+      else if (info.note)
+        meta.push(`<span class="stop">${esc(info.note)}</span>`);
+      if (info.onPage) meta.push(`<span class="onpage">on the page</span>`);
+      if (!up && !source && !r.loop && info.ends.length)
+        meta.push(
+          `<span class="ends">from ${info.ends.map((e) => `<code>${wb(e)}</code>`).join(", ")}</span>`,
+        );
+      const known = Boolean(S.nodes[r.id]);
+      const body = open
+        ? `<div class="ol-body">
+        ${known ? stepCard(r.id, { bare: true }) : ""}
+        <div class="ol-acts">${known ? `<button class="link" type="button" data-go="${esc(r.id)}">Select ${esc(r.id)}</button>` : ""}${info.onPage ? `<button class="link" type="button" data-scroll="${esc(r.id)}">↗ On the page</button>` : ""}</div>
+        ${rowsHtml([...branch, r.id], up)}
+      </div>`
+        : "";
+      return `<li class="ol-item${open ? " is-open" : ""}" data-row="${esc(r.id)}">
+      <button class="ol-row" type="button" ${r.loop ? "disabled" : `data-tog="${esc(r.key)}"${up ? " data-up" : ""} aria-expanded="${open}"`}>
+        <span class="ol-chev" aria-hidden="true">${r.loop ? "" : ICON.chev}</span>
+        ${sw(state(r.id))}
+        <span class="ol-main"><span class="ol-t"><span class="id">${esc(r.id)}</span> ${ttl}</span><span class="ol-meta">${meta.join(`<span class="sep" aria-hidden="true">·</span>`)}</span></span>
+        ${info.value !== null ? `<span class="fig">${esc(info.value)}</span>` : ""}
+      </button>
+      ${body}
+    </li>`;
+    })
+    .join("");
+  return `<p class="ol-cap">${esc(label)}</p><ul class="ol">${items}</ul>`;
 }
 
 // ---------- default state: the summary ----------
@@ -411,57 +453,29 @@ function renderSelected(id) {
     ? `<div class="rests"><h2 class="h">Built from</h2><ul>${sources.map((r) => sourceRow(r, { count: false })).join("")}</ul></div>`
     : "";
 
-  // used by (dashed, above the clicked node)
-  const direct = S.usedBy[id] || [];
-  let uses = `<div class="uses">`;
-  if (!direct.length) {
-    uses += `<button class="btn" type="button" disabled>Nothing else uses this</button>`;
-  } else {
-    uses += `<button class="btn" type="button" data-uses aria-expanded="${S.showUses}">${S.showUses ? ICON.caret.replace("M2.5 7.5 6 4l3.5 3.5", "M2.5 4.5 6 8l3.5-3.5") : ICON.caret}${S.showUses ? "Hide what uses this" : `Show what uses this ${n.step === "insight" ? "claim" : n.step === "figure" ? "number" : n.step} (${direct.length})`}</button>`;
-  }
-  uses += `</div>`;
-  let usesList = "";
-  if (S.showUses && direct.length) {
-    // farther users sit higher: walk, then reverse so the nearest is at the bottom
-    const rows = [];
-    const seen = new Set([id]);
-    const walk = (x, depth) => {
-      for (const u of S.usedBy[x] || []) {
-        if (seen.has(u)) continue;
-        seen.add(u);
-        rows.push({ u, depth });
-        if (S.upOpen.has(u)) walk(u, depth + 1);
-      }
-    };
-    walk(id, 0);
-    rows.reverse();
-    usesList = `<div class="score uses-list">${rows
-      .map(({ u, depth }) => {
-        return `<div class="row" data-row="${esc(u)}"><div class="st"><span class="blk${depth % 2 ? " r" : ""}"></span></div>
-          <div class="step"><div class="step-h" style="padding-left:${depth * 14}px">${idBtn(u)}<span class="kind">${esc(stepWord(u))}</span><span class="ttl">${esc(nameOf(u))}</span>${fig(u)}<button class="tw${(S.usedBy[u] || []).length ? "" : " none"}" type="button" data-upopen="${esc(u)}" aria-expanded="${S.upOpen.has(u)}" title="What uses ${esc(u)}">${ICON.caret}</button></div></div></div>`;
-      })
-      .join(
-        "",
-      )}</div><p class="uses-cap">Dashed: what uses this. Solid, below: how it was computed.</p>`;
-  }
+  // used by: the same outline, going up
+  const users = outline(S.fx.graph, [id], { up: true }).rows.length;
+  const uses = `<div class="uses">${
+    users
+      ? `<button class="btn" type="button" data-uses aria-expanded="${S.showUses}">${S.showUses ? ICON.caret.replace("M2.5 7.5 6 4l3.5 3.5", "M2.5 4.5 6 8l3.5-3.5") : ICON.caret}${S.showUses ? "Hide what uses this" : `Show what uses this (${users})`}</button>`
+      : `<button class="btn" type="button" disabled>Nothing else uses this</button>`
+  }</div>`;
+  const usesList =
+    S.showUses && users
+      ? `<div class="ol-sec">${rowsHtml([id], true)}</div>`
+      : "";
 
-  // the score
-  const bs = beats(S.fx.graph, id);
-  const scoreRows = bs
-    .map((b) =>
-      b.ids
-        .map((x, k) =>
-          stepRow(x, {
-            beatStart: k === 0,
-            word: b.word,
-            lane: k % 2 === 1,
-            isTop: x === id,
-          }),
-        )
-        .join(""),
-    )
-    .join("");
-  const score = `<div class="score-h"><h2 class="h">How it was computed</h2></div><div class="score" id="score">${scoreRows}</div>`;
+  // how it was computed: the clicked step's own card, then its inputs
+  const keys = outlineKeys(S.fx.graph, id);
+  const allOpen = keys.every((k) => S.openDown.has(k));
+  const openAll = keys.length
+    ? `<button class="link" type="button" data-openall="${allOpen ? "" : "1"}">${allOpen ? "Close all" : "Open all"}</button>`
+    : "";
+  const own = ownCard(S.fx.graph, id)
+    ? `<div class="ol-own">${stepCard(id, { isTop: true })}</div>`
+    : "";
+  const score = `<div class="score-h"><h2 class="h">How it was computed</h2>${openAll}</div>
+    <div class="ol-sec">${own}${rowsHtml([id], false)}</div>`;
 
   return head + rests + uses + usesList + score;
 }
@@ -531,8 +545,7 @@ function select(id, { fromPage = false, push = true } = {}) {
   if (S.sel && push && S.sel !== id) S.history.push(S.sel);
   if (!S.sel && push) S.history = [];
   S.sel = id;
-  S.showUses = false;
-  S.upOpen = new Set();
+  startOver();
   render();
   if (!fromPage && pageCount(id)) {
     S.cycle[id] = -1;
@@ -544,7 +557,7 @@ function back() {
   const prev = S.history.pop();
   if (prev) {
     S.sel = prev;
-    S.showUses = false;
+    startOver();
     render();
     if (pageCount(prev)) {
       S.cycle[prev] = -1;
@@ -555,6 +568,7 @@ function back() {
 function home() {
   S.sel = null;
   S.history = [];
+  startOver();
   render();
 }
 
@@ -643,34 +657,26 @@ const onClick = (e) => {
     S.showUses = !S.showUses;
     return render({ keepScroll: true });
   }
-  if (t.dataset.upopen) {
-    const u = t.dataset.upopen;
-    S.upOpen.has(u) ? S.upOpen.delete(u) : S.upOpen.add(u);
+  if (t.dataset.tog) {
+    const opened = t.hasAttribute("data-up") ? S.openUp : S.openDown;
+    const key = t.dataset.tog;
+    opened.has(key) ? opened.delete(key) : opened.add(key);
+    return render({ keepScroll: true });
+  }
+  if (t.hasAttribute("data-openall")) {
+    for (const key of outlineKeys(S.fx.graph, S.sel))
+      t.dataset.openall ? S.openDown.add(key) : S.openDown.delete(key);
     return render({ keepScroll: true });
   }
 };
 pane.addEventListener("click", onClick);
 $("#status").addEventListener("click", onClick);
-// hovering a step bands it, bands what it reads from, and outlines it on the page
+// hovering a row outlines its step on the page
 pane.addEventListener("mouseover", (e) => {
-  const row = e.target.closest(".row[data-row]");
-  pane
-    .querySelectorAll(".parent-band")
-    .forEach((r) => r.classList.remove("parent-band"));
-  if (!row) return peek(null, false);
-  const id = row.dataset.row;
-  for (const p of S.nodes[id]?.from || [])
-    pane
-      .querySelector(`#score [data-row="${CSS.escape(p)}"]`)
-      ?.classList.add("parent-band");
-  peek(id, true);
+  const row = e.target.closest("[data-row]");
+  peek(row?.dataset.row, Boolean(row));
 });
-pane.addEventListener("mouseleave", () => {
-  peek(null, false);
-  pane
-    .querySelectorAll(".parent-band")
-    .forEach((r) => r.classList.remove("parent-band"));
-});
+pane.addEventListener("mouseleave", () => peek(null, false));
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape" && !e.target.closest("input, select, textarea"))
     back();

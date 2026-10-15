@@ -65,8 +65,6 @@
   --nav-h: 48px;
   --panel-w: 580px;
   --gut: 28px; /* panel gutter */
-  --margin: 16px; /* left of the commit rail */
-  --track: 30px; /* commit rail column */
   --r-card: 8px;
   --r-ctl: 6px;
 }
@@ -713,13 +711,7 @@ button.id:hover {
   height: 12px;
   stroke-width: 1.8;
 }
-.uses-cap {
-  padding: 2px var(--gut) 6px calc(var(--margin) + var(--track) + 10px);
-  color: var(--ink-3);
-  font-size: 12px;
-}
-
-/* ---------- the commit graph ---------- */
+/* ---------- how it was computed ---------- */
 .score-h {
   display: flex;
   align-items: baseline;
@@ -730,91 +722,6 @@ button.id:hover {
 .score-h .h {
   margin: 0;
 }
-.score:not(.uses-list) {
-  padding-bottom: 36px;
-}
-
-/* A row is a rail track and a step card. Rows never change colour: the card's
-   border carries the state (hover, read from, clicked). --node-y is where the
-   commit sits, level with the card's title line. */
-.row {
-  --row-bg: var(--paper);
-  --node-y: 30px;
-  position: relative;
-  display: grid;
-  grid-template-columns: var(--track) minmax(0, 1fr);
-  padding-left: var(--margin);
-}
-/* the gap between cards belongs to the step, so the rail runs through it */
-.score:not(.uses-list) > .row + .row {
-  --node-y: 44px;
-}
-.score:not(.uses-list) > .row + .row > .step {
-  padding-top: 14px;
-}
-.score:not(.uses-list) > .row + .row.has-conn {
-  --node-y: 72px;
-}
-/* the rail: a 2px line from the first commit to the last */
-.row .st {
-  position: relative;
-}
-.row .st::before {
-  content: "";
-  position: absolute;
-  left: 14px;
-  top: 0;
-  bottom: 0;
-  width: 2px;
-  background: var(--graph);
-}
-.row:first-child .st::before {
-  top: var(--node-y);
-}
-.row:last-child .st::before {
-  bottom: auto;
-  height: var(--node-y);
-}
-.row:only-child .st::before {
-  display: none;
-}
-
-/* commits: solid = traced, amber ring = external, dashed red ring = nothing
-   behind it. The halo is the paper, so a node cuts the rail cleanly. */
-.blk {
-  position: absolute;
-  top: calc(var(--node-y) - 6px);
-  left: 9px;
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: var(--row-bg);
-  box-shadow: 0 0 0 3px var(--row-bg);
-}
-.blk.full {
-  background: var(--node);
-}
-.blk.partial {
-  border: 2px solid var(--warn);
-}
-.blk.ungrounded {
-  border: 2px dashed var(--stop);
-}
-/* the clicked commit: larger, ringed in the accent */
-.blk.top {
-  top: calc(var(--node-y) - 8px);
-  left: 7px;
-  width: 16px;
-  height: 16px;
-  box-shadow:
-    0 0 0 3px var(--row-bg),
-    0 0 0 4.5px var(--accent);
-}
-
-.step {
-  min-width: 0;
-  padding: 0 var(--gut) 0 6px;
-}
 .card {
   padding: 18px 20px;
   border: 1px solid var(--rule);
@@ -822,15 +729,6 @@ button.id:hover {
   background: var(--paper);
   transition: border-color 0.15s;
 }
-.row:hover .card,
-.row.parent-band .card {
-  border-color: var(--rule-strong);
-}
-.row.is-top .card,
-.row.band .card {
-  border-color: var(--ink);
-}
-
 .step-h {
   display: flex;
   align-items: baseline;
@@ -877,12 +775,6 @@ button.id:hover {
   display: none;
 }
 
-.conn {
-  height: 28px;
-  padding-top: 4px;
-  color: var(--ink-3);
-  font: 500 12px/16px var(--f-mono);
-}
 /* a source's desc, under its mart */
 .sub {
   margin-top: 6px;
@@ -1063,75 +955,6 @@ button.id:hover {
   height: 12px;
 }
 
-/* warnings */
-/* used-by rows: the same graph, dashed, with hollow grey commits */
-.uses-list {
-  margin-top: 10px;
-}
-.uses-list .row .st::before {
-  background: repeating-linear-gradient(
-    to bottom,
-    var(--graph) 0 3px,
-    transparent 3px 6px
-  );
-}
-.uses-list .row:first-child .st::before {
-  top: 20px;
-}
-.uses-list .row:last-child .st::before {
-  bottom: 0;
-  height: auto;
-}
-.uses-list .blk {
-  top: 15px;
-  background: var(--row-bg);
-  box-shadow:
-    inset 0 0 0 1.5px var(--ink-3),
-    0 0 0 3px var(--row-bg);
-}
-.uses-list .step {
-  padding-top: 10px;
-  padding-bottom: 10px;
-}
-.uses-list .step-h {
-  align-items: center;
-}
-.uses-list .step-h .ttl {
-  font-weight: 500;
-  color: var(--ink-2);
-}
-.uses-list .row:hover .step-h .ttl {
-  color: var(--ink);
-}
-.tw {
-  flex: none;
-  display: inline-grid;
-  place-items: center;
-  width: 22px;
-  height: 22px;
-  margin-left: 2px;
-  border: 0;
-  border-radius: 4px;
-  background: transparent;
-  color: var(--ink-2);
-  transition: background-color 0.15s;
-}
-.tw svg {
-  width: 12px;
-  height: 12px;
-  stroke-width: 1.8;
-  transition: rotate 0.2s var(--ease-out);
-}
-.tw[aria-expanded="true"] svg {
-  rotate: 180deg;
-}
-.tw:hover {
-  background: var(--band);
-}
-.tw.none {
-  visibility: hidden;
-}
-
 /* read out to screen readers, never seen */
 .vh {
   position: absolute;
@@ -1168,7 +991,6 @@ button.id:hover {
 @media (max-width: 760px) {
   :root {
     --gut: 18px;
-    --margin: 8px;
     --status-h: 40px;
   }
   .app {
@@ -1399,5 +1221,198 @@ button.id:hover {
   }
   .statusbar .bar-r {
     max-width: none;
+  }
+}
+
+/* ---------- the outline ----------
+   Closed rows are a hairline list. An open row becomes a bordered box: its
+   head on a band, its card and its own inputs inside, joined to the head by
+   a light guide line under the chevron. */
+.ol-sec {
+  padding: 0 var(--gut) 36px;
+}
+.uses + .ol-sec {
+  padding-top: 14px;
+  padding-bottom: 0;
+}
+.ol-own {
+  margin-bottom: 4px;
+}
+.ol-cap {
+  margin: 20px 0 8px;
+  font: 500 12px/1.4 var(--f-mono);
+  color: var(--ink-3);
+}
+.ol {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.ol-item {
+  border-bottom: 1px solid var(--rule-soft);
+}
+
+/* the row: chevron, swatch, then the title over a quiet meta line, value right */
+.ol-row {
+  all: unset;
+  box-sizing: border-box;
+  width: 100%;
+  cursor: pointer;
+  display: grid;
+  grid-template-columns: 16px 8px minmax(0, 1fr) auto;
+  gap: 0 10px;
+  align-items: start;
+  padding: 11px 12px 11px 8px;
+  border-radius: 6px;
+  transition: background-color 0.15s;
+}
+.ol-row:hover {
+  background: var(--band-soft);
+}
+.ol-row:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+.ol-row[disabled] {
+  cursor: default;
+}
+.ol-row[disabled]:hover {
+  background: none;
+}
+.ol-chev {
+  display: grid;
+  place-items: center;
+  height: 21px;
+  color: var(--ink-3);
+}
+.ol-chev svg {
+  width: 12px;
+  height: 12px;
+  stroke-width: 1.8;
+  transition: rotate 0.2s var(--ease-out);
+}
+.ol-row:hover .ol-chev {
+  color: var(--ink);
+}
+.ol-row[aria-expanded="true"] .ol-chev svg {
+  rotate: 90deg;
+}
+.ol-row .sw {
+  margin-top: 7px;
+}
+.ol-main {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.ol-t {
+  font: 400 15px/1.4 var(--f-serif);
+  color: var(--ink);
+  text-wrap: pretty;
+}
+.ol-t .id {
+  display: inline-block;
+  margin-right: 6px;
+  padding: 0 5px;
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  font: 500 11.5px/1.6 var(--f-mono);
+  color: var(--ink-2);
+  vertical-align: 1px;
+}
+.ol-t code {
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+.ol-meta {
+  font: 400 11.5px/1.5 var(--f-mono);
+  color: var(--ink-3);
+  overflow-wrap: break-word;
+}
+.ol-meta .sep {
+  margin: 0 6px;
+}
+.ol-meta .onpage {
+  color: var(--accent);
+}
+.ol-meta .stop {
+  color: var(--stop);
+}
+.ol-row .fig {
+  padding-left: 12px;
+  font: 500 13px/21px var(--f-mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+
+/* open: one bordered box holding the head, the card and the inputs */
+.ol-item.is-open {
+  margin: 8px 0;
+  border: 1px solid var(--rule);
+  border-radius: var(--r-card);
+  background: var(--paper);
+}
+.ol-item.is-open + .ol-item {
+  border-top: 0;
+}
+.ol-item.is-open > .ol-row {
+  border-radius: calc(var(--r-card) - 1px) calc(var(--r-card) - 1px) 0 0;
+  background: var(--band-soft);
+  border-bottom: 1px solid var(--rule-soft);
+}
+.ol-item.is-open > .ol-row:hover {
+  background: var(--band);
+}
+.ol-body {
+  position: relative;
+  padding: 14px 14px 14px 42px;
+}
+/* the guide: from under the chevron down the body, in the lightest rule */
+.ol-body::before {
+  content: "";
+  position: absolute;
+  left: 15.5px;
+  top: 0;
+  bottom: 14px;
+  border-left: 1px solid var(--rule);
+}
+.ol-body .card.bare {
+  padding: 0;
+  border: 0;
+  background: none;
+}
+/* a bare card has no padding to bleed into: the SQL sits as its own framed
+   block inside the open row */
+.ol-body .card.bare .snip {
+  margin: 14px 0 0;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+}
+.ol-acts {
+  display: flex;
+  gap: 18px;
+  margin-top: 16px;
+  font-size: 12px;
+}
+.ol-body .ol-cap {
+  margin-top: 18px;
+}
+.ol-body > .ol {
+  border-top: 1px solid var(--rule-soft);
+}
+.ol-body > .ol > .ol-item:last-child {
+  border-bottom: 0;
+}
+.ol-body > .ol > .ol-item.is-open:last-child {
+  margin-bottom: 0;
+}
+
+@media (max-width: 600px) {
+  .ol-body {
+    padding-left: 16px;
+  }
+  .ol-body::before {
+    display: none;
   }
 }

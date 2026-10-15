@@ -276,38 +276,62 @@ const parentsOf = (graph, x) => {
 };
 
 /**
- * The chain under `id` in beats, the clicked node's beat first.
- * @returns {{ word: string | null, ids: string[] }[]}
+ * The rows under one step of the outline. `branch` is the clicked node, then
+ * each opened row down to the step whose rows are wanted.
+ * @returns {{ label: string | null, rows: { id: string, key: string, loop: boolean }[] }}
  */
-export function beats(graph, id) {
-  const chain = new Set();
-  const walk = (x) => {
-    if (chain.has(x)) return;
-    chain.add(x);
-    for (const parent of parentsOf(graph, x)) walk(parent);
+export function outline(graph, branch, { up = false } = {}) {
+  const last = branch.at(-1);
+  const next = up
+    ? Object.keys(graph.nodes).filter((x) => parentsOf(graph, x).includes(last))
+    : parentsOf(graph, last);
+  const rows = next.map((id) => ({
+    id,
+    key: [...branch.slice(1), id].join(" "),
+    loop: branch.includes(id),
+  }));
+  const word = up ? "Used by" : "Rests on";
+  return {
+    label: rows.length
+      ? `${word}${rows.length > 1 ? ` ${rows.length}` : ""}`
+      : null,
+    rows,
   };
-  walk(id);
-  // A node is one above its tallest parent. Placing 0 before reading the
-  // parents makes a cycle end instead of looping.
-  const heights = {};
-  const height = (x) => {
-    if (heights[x] !== undefined) return heights[x];
-    heights[x] = 0;
-    const parents = parentsOf(graph, x);
-    return (heights[x] = parents.length
-      ? 1 + Math.max(...parents.map(height))
-      : 0);
-  };
-  const order = Object.keys(graph.nodes);
-  // Ids the graph does not know sort after the ones it does.
-  const rank = (x) => (order.includes(x) ? order.indexOf(x) : order.length);
-  const found = [];
-  for (let k = height(id); k >= 0; k--) {
-    const ids = [...chain].filter((x) => height(x) === k);
-    ids.sort((a, b) => rank(a) - rank(b));
-    if (ids.length) found.push(ids);
-  }
-  return found.map((ids, k) => ({ word: k ? "Built on" : null, ids }));
+}
+
+/** The keys "Open all" opens: every row under `id`, going down. */
+export function outlineKeys(graph, id) {
+  const walk = (branch) =>
+    outline(graph, branch)
+      .rows.filter((r) => !r.loop)
+      .flatMap((r) => [r.key, ...walk([...branch, r.id])]);
+  return walk([id]);
+}
+
+/**
+ * Whether the clicked step shows its own card: not a claim that rests on
+ * something, whose card would only list the rows below it.
+ */
+export function ownCard(graph, id) {
+  return !(
+    graph.nodes[id]?.step === "insight" && parentsOf(graph, id).length > 0
+  );
+}
+
+/**
+ * What a row says about one step: its kind, title and value, and the names of
+ * the sources it ends at.
+ * @returns {{ id: string, kind: string, title: string | null, value: string | null, onPage: boolean, ends: string[], note: string | null }}
+ */
+export function inputRow(data, id, { onPage = [] } = {}) {
+  const { kind, title, value } = stepHead(data.graph, id);
+  const ends = builtFrom(data, id).map((row) => row.name ?? row.node);
+  const note = !nodesOf(data.graph)[id]
+    ? "not in the graph"
+    : !ends.length && !parentsOf(data.graph, id).length
+      ? "nothing behind it"
+      : null;
+  return { id, kind, title, value, onPage: onPage.includes(id), ends, note };
 }
 
 /** A string with something in it, else null. */
