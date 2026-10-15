@@ -14,6 +14,7 @@ export default {
         "build",
         "ci",
         "perf",
+        "style",
         "revert",
       ],
     ],

@@ -56,7 +56,7 @@ fix/empty-view-crash
 docs/readme-teaser
 ```
 
-Allowed types: `feat`, `fix`, `docs`, `chore`, `refactor`, `test`, `build`, `ci`, `perf`, `revert`.
+Allowed types: `feat`, `fix`, `docs`, `chore`, `refactor`, `test`, `build`, `ci`, `perf`, `style`, `revert`.
 
 ### Commit messages
 

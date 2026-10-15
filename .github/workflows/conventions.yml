@@ -18,9 +18,9 @@ jobs:
           BRANCH: ${{ github.head_ref }}
         run: |
           echo "Branch: $BRANCH"
-          if [[ ! "$BRANCH" =~ ^(feat|fix|docs|chore|refactor|test|build|ci|perf|revert)/[a-z0-9._-]+$ ]]; then
+          if [[ ! "$BRANCH" =~ ^(feat|fix|docs|chore|refactor|test|build|ci|perf|style|revert)/[a-z0-9._-]+$ ]]; then
             echo "::error::Branch name '$BRANCH' does not match '<type>/<slug>' (e.g. feat/sql-composer)."
-            echo "Allowed types: feat, fix, docs, chore, refactor, test, build, ci, perf, revert"
+            echo "Allowed types: feat, fix, docs, chore, refactor, test, build, ci, perf, style, revert"
             exit 1
           fi
 
@@ -42,6 +42,7 @@ jobs:
             build
             ci
             perf
+            style
             revert
           requireScope: false
           subjectPattern: ^(?![A-Z]).+$
