@@ -803,8 +803,19 @@ button.id:hover {
 .step-h .ttl {
   flex: 1;
   min-width: 0;
-  font: 500 13px/1.4 var(--f-mono);
+  font: 500 13px/1.5 var(--f-mono);
   text-wrap: pretty;
+}
+.step-h .ttl.clamp {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+.step-h .fig-link {
+  flex: none;
+  margin-left: 8px;
+  font: 400 12px/1.2 var(--f-mono);
 }
 .step-h .ttl code {
   font-weight: 500;
@@ -825,38 +836,59 @@ button.id:hover {
 }
 
 .conn {
-  margin-bottom: 8px;
+  margin-bottom: 10px;
   color: var(--ink-3);
   font: 500 12px/1 var(--f-mono);
 }
-.facts {
-  margin-top: 8px;
+/* a source's desc, under its mart */
+.sub {
+  margin-top: 4px;
   color: var(--ink-2);
-  font: 400 12px/1.5 var(--f-mono);
-}
-.facts.warn {
-  color: var(--warn-ink);
-}
-.desc {
-  margin-top: 8px;
-  color: var(--ink);
-  font-size: 13px;
+  font-size: 12.5px;
   line-height: 1.5;
-  white-space: nowrap;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
   overflow: hidden;
-  text-overflow: ellipsis;
 }
-.desc.full {
-  white-space: normal;
-  overflow: visible;
-  text-wrap: pretty;
+/* kind · facts · toggle, one quiet line under the title */
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 8px;
+  margin-top: 6px;
+  color: var(--ink-3);
+  font: 400 12px/1.6 var(--f-mono);
+}
+.step-h + .meta,
+.sub + .meta {
+  margin-top: 5px;
+}
+.row.is-top .step-h + .meta {
+  margin-top: 8px;
+}
+.meta .sep {
+  color: var(--graph);
+}
+.meta .id {
+  font-size: 11.5px;
+}
+.meta b {
+  color: var(--num);
+  font-weight: 600;
+}
+.meta .warn {
+  color: var(--warn);
+}
+.meta .stop {
+  color: var(--stop);
 }
 .tog {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  margin-top: 10px;
-  padding: 2px 0;
+  gap: 4px;
+  padding: 0;
   border: 0;
   background: none;
   color: var(--ink-2);
@@ -1066,27 +1098,14 @@ button.id:hover {
   visibility: hidden;
 }
 
-/* ---------- toast ---------- */
-.toast {
-  position: fixed;
-  right: 20px;
-  bottom: 52px;
-  z-index: 10;
-  padding: 10px 14px;
-  border-radius: 3px;
-  background: var(--ink);
-  color: var(--on-act);
-  font: 500 12px/1.3 var(--f-mono);
-  opacity: 0;
-  translate: 0 12px;
-  pointer-events: none;
-  transition:
-    opacity 0.25s var(--ease-out),
-    translate 0.25s var(--ease-out);
-}
-.toast.on {
-  opacity: 1;
-  translate: 0 0;
+/* read out to screen readers, never seen */
+.vh {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1191,12 +1210,6 @@ button.id:hover {
   .step-h .fig {
     margin-left: auto;
   }
-  .toast {
-    left: 16px;
-    right: 16px;
-    bottom: 52px;
-    text-align: center;
-  }
 }
 
 /* ---------- the status bar ---------- */
@@ -1206,7 +1219,7 @@ button.id:hover {
 }
 .statusbar .bar-line {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   gap: 4px 14px;
   padding: 8px var(--gut);
@@ -1225,8 +1238,68 @@ button.id:hover {
 .statusbar .link[aria-expanded="true"] svg {
   rotate: -90deg;
 }
+.statusbar .bar-line > * {
+  flex: none;
+}
 .statusbar .reason {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
   color: var(--stop);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.statusbar .holds {
+  padding-left: 14px;
+  border-left: 1px solid var(--rule);
+}
+.statusbar .bar-line > .bar-r {
+  flex: 0 1 auto;
+}
+.statusbar .bar-r {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+  max-width: 50%;
+  margin-left: auto;
+}
+.statusbar .here {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+.statusbar .here-id {
+  color: var(--ink-2);
+  font-weight: 600;
+}
+.statusbar .here-what {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.statusbar .here-what b {
+  color: var(--num);
+  font-weight: 600;
+}
+.statusbar .key {
+  flex: none;
+  white-space: nowrap;
+}
+.statusbar kbd {
+  padding: 0 4px;
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  font: inherit;
+  font-size: 11px;
+}
+.statusbar .flash {
+  overflow: hidden;
+  color: var(--ink);
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .statusbar .drawer {
   position: absolute;
@@ -1260,4 +1333,18 @@ button.id:hover {
   border-radius: 3px;
   font-size: 12.5px;
   line-height: 1.55;
+}
+
+/* after the base status bar rules, so these win at phone width */
+@media (max-width: 760px) {
+  .statusbar .holds,
+  .statusbar .key {
+    display: none;
+  }
+  .statusbar .bar-line {
+    flex-wrap: wrap;
+  }
+  .statusbar .bar-r {
+    max-width: none;
+  }
 }
