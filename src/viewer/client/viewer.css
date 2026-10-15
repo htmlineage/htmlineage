@@ -1,8 +1,33 @@
 /* Trailline viewer: every rule for the rail and the lineage panel. Colours
-   come from the Console tokens in themes.css, so both modes share one
-   rulebook. The report pane is never styled from here. */
+   come from the Ledger tokens in themes.css, so both modes share one
+   rulebook. The report pane is never styled from here.
 
-/* ---------- font: shipped with the package, never fetched ---------- */
+   Borders and space separate things; colour is kept for the few marks that
+   mean something (the accent for "you are here", amber and red for trouble),
+   and those always come with words or a shape as well. */
+
+/* ---------- fonts: shipped with the package, never fetched ---------- */
+@font-face {
+  font-family: "Source Serif 4";
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  src: url("/assets/fonts/SourceSerif4-Regular.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Source Serif 4";
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+  src: url("/assets/fonts/SourceSerif4-Medium.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Source Serif 4";
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+  src: url("/assets/fonts/SourceSerif4-SemiBold.woff2") format("woff2");
+}
 @font-face {
   font-family: "JetBrains Mono";
   font-weight: 400;
@@ -34,13 +59,16 @@
 
 :root {
   --f-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --f-serif: "Source Serif 4", "Iowan Old Style", Georgia, serif;
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
-  --rail-h: 48px;
-  --nav-h: 46px;
-  --panel-w: 560px;
-  --gut: 24px; /* panel gutter */
-  --margin: 14px; /* left of the commit rail */
+  --rail-h: 52px;
+  --nav-h: 48px;
+  --panel-w: 580px;
+  --gut: 28px; /* panel gutter */
+  --margin: 16px; /* left of the commit rail */
   --track: 30px; /* commit rail column */
+  --r-card: 8px;
+  --r-ctl: 6px;
 }
 
 /* ---------- base ---------- */
@@ -76,7 +104,8 @@ button {
   cursor: pointer;
 }
 code {
-  font: inherit;
+  font-family: var(--f-mono);
+  font-size: 0.9em;
   color: var(--ink);
   overflow-wrap: anywhere;
 }
@@ -101,9 +130,9 @@ svg {
   outline: none;
 }
 :focus-visible {
-  outline: 2px solid var(--act);
+  outline: 2px solid var(--accent);
   outline-offset: 2px;
-  border-radius: 3px;
+  border-radius: 4px;
 }
 .muted {
   color: var(--ink-3);
@@ -123,8 +152,8 @@ svg {
 .rail {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 0 14px 0 16px;
+  gap: 12px;
+  padding: 0 16px 0 20px;
   background: var(--rail-bg);
   border-bottom: 1px solid var(--rule);
   min-width: 0;
@@ -177,7 +206,7 @@ svg {
   height: 32px;
   padding: 0 12px;
   border: 1px solid var(--rule);
-  border-radius: 4px;
+  border-radius: var(--r-ctl);
   background: var(--rail-btn-bg);
   color: var(--ink);
   font: 500 12px/1 var(--f-mono);
@@ -192,9 +221,7 @@ svg {
   height: 14px;
 }
 .rail-btn:hover {
-  background: var(--ink);
   border-color: var(--ink);
-  color: var(--on-act);
 }
 .rail-btn.done {
   border-color: var(--ink);
@@ -262,7 +289,7 @@ svg {
   gap: 6px;
   font: 500 12px/1 var(--f-mono);
   color: var(--ink-3);
-  margin-bottom: 12px;
+  margin-bottom: 14px;
 }
 .h::before {
   content: "--";
@@ -273,38 +300,38 @@ svg {
 }
 
 .kind {
-  font: 500 11.5px/1 var(--f-mono);
+  font: 500 12px/1 var(--f-mono);
   text-transform: lowercase;
-  color: var(--kw);
+  color: var(--ink-2);
   white-space: nowrap;
 }
 
+/* an id is a small outlined chip: the border says it can be pressed */
 .id {
   display: inline-block;
   vertical-align: baseline;
-  border: 0;
-  border-radius: 3px;
-  padding: 1px 5px;
-  background: var(--act-wash);
-  color: var(--act);
-  font: 600 12.5px/1.35 var(--f-mono);
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  padding: 0 5px;
+  background: transparent;
+  color: var(--ink);
+  font: 500 12px/1.45 var(--f-mono);
   white-space: nowrap;
   transition:
     background-color 0.15s,
-    color 0.15s;
+    border-color 0.15s;
 }
 button.id:hover {
-  background: var(--act);
-  color: var(--on-act);
+  border-color: var(--ink);
+  background: var(--band);
 }
 .id.static {
-  background: var(--band);
-  color: var(--ink);
   cursor: default;
 }
 .id.missing {
-  background: var(--stop-wash);
-  color: var(--stop-ink);
+  border-style: dashed;
+  border-color: var(--stop);
+  color: var(--stop);
 }
 
 .sw {
@@ -319,10 +346,10 @@ button.id:hover {
   background: var(--node);
 }
 .sw.partial {
-  box-shadow: inset 0 0 0 1.5px var(--warn);
+  border: 1.5px solid var(--warn);
 }
 .sw.ungrounded {
-  box-shadow: inset 0 0 0 1.5px var(--stop);
+  border: 1.5px dashed var(--stop);
 }
 .sw.warn {
   background: var(--warn);
@@ -334,13 +361,13 @@ button.id:hover {
 .btn {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  height: 28px;
-  padding: 0 10px;
-  border: 1px solid currentColor;
-  border-radius: 4px;
+  gap: 8px;
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--rule);
+  border-radius: var(--r-ctl);
   background: transparent;
-  color: var(--act);
+  color: var(--ink);
   font: 500 12px/1 var(--f-mono);
   white-space: nowrap;
   transition:
@@ -353,9 +380,17 @@ button.id:hover {
   height: 14px;
 }
 .btn:hover:not(:disabled) {
-  background: var(--act);
-  border-color: var(--act);
+  border-color: var(--ink);
+}
+/* the one filled button: the head's first action */
+.head-act .btn:first-child:not(:disabled) {
+  background: var(--ink);
+  border-color: var(--ink);
   color: var(--on-act);
+}
+.head-act .btn:first-child:hover:not(:disabled) {
+  background: var(--ink-2);
+  border-color: var(--ink-2);
 }
 .btn:disabled {
   color: var(--ink-3);
@@ -363,7 +398,8 @@ button.id:hover {
   cursor: default;
 }
 .btn.done,
-.btn.done:hover:not(:disabled) {
+.btn.done:hover:not(:disabled),
+.head-act .btn.done:first-child:not(:disabled) {
   background: transparent;
   color: var(--ink);
   border-color: var(--ink);
@@ -373,25 +409,25 @@ button.id:hover {
   border: 0;
   padding: 0;
   background: none;
-  color: var(--act);
+  color: var(--ink);
   text-decoration: underline;
   text-decoration-thickness: 1px;
   text-underline-offset: 3px;
-  text-decoration-color: color-mix(in srgb, var(--act) 45%, transparent);
+  text-decoration-color: var(--rule-strong);
   transition:
     color 0.15s,
     text-decoration-color 0.15s;
 }
 .link:hover {
-  color: var(--act-ink);
+  color: var(--ink);
   text-decoration-color: currentColor;
 }
 
 .stamp {
   display: inline-block;
   align-self: flex-start;
-  border: 1.5px solid currentColor;
-  border-radius: 3px;
+  border: 1px solid currentColor;
+  border-radius: 4px;
   padding: 3px 7px 2px;
   font: 600 11px/1 var(--f-mono);
   letter-spacing: 0.04em;
@@ -425,11 +461,11 @@ button.id:hover {
   height: 30px;
   padding: 0 8px 0 4px;
   border: 0;
-  border-radius: 3px;
+  border-radius: var(--r-ctl);
   background: transparent;
-  color: var(--act);
+  color: var(--ink-2);
   font: 500 12px/1 var(--f-mono);
-  transition: background-color 0.15s;
+  transition: color 0.15s;
 }
 .back svg {
   width: 14px;
@@ -437,7 +473,9 @@ button.id:hover {
   stroke-width: 1.8;
 }
 .back:hover {
-  background: var(--act-wash);
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 .nav .link {
   font-size: 12px;
@@ -445,42 +483,43 @@ button.id:hover {
 
 /* ---------- summary ---------- */
 .sec {
-  padding: 22px var(--gut) 20px;
+  padding: 32px var(--gut) 28px;
 }
 .sec + .sec {
-  border-top: 1px solid var(--rule-soft);
+  border-top: 1px solid var(--rule);
 }
 .lede-sub {
-  font: 600 18px/1.35 var(--f-mono);
-  letter-spacing: -0.02em;
+  font: 400 24px/1.3 var(--f-serif);
+  letter-spacing: -0.01em;
   text-wrap: balance;
 }
 .lede-sub + .lede-sub {
-  margin-top: 14px;
+  margin-top: 16px;
 }
 .lede-more {
   display: block;
-  margin-top: 4px;
+  margin-top: 8px;
   color: var(--ink-2);
-  font: 400 13px/1.5 var(--f-mono);
+  font: 400 15px/1.5 var(--f-serif);
   letter-spacing: 0;
 }
 .built {
-  margin-top: 4px;
+  border: 1px solid var(--rule);
+  border-radius: var(--r-card);
 }
 .built li {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
-  gap: 2px 12px;
-  padding: 9px 0;
+  gap: 4px 12px;
+  padding: 12px 16px;
 }
 .built .what {
   flex: 1 1 auto;
   min-width: 0;
 }
 .built li + li {
-  border-top: 1px dashed var(--rule);
+  border-top: 1px solid var(--rule-soft);
 }
 .built .when {
   margin-left: auto;
@@ -494,7 +533,9 @@ button.id:hover {
 
 /* needs attention */
 .attn {
-  margin: 0 calc(var(--gut) * -1);
+  border: 1px solid var(--rule);
+  border-radius: var(--r-card);
+  overflow: hidden;
 }
 .attn li + li {
   border-top: 1px solid var(--rule-soft);
@@ -505,19 +546,19 @@ button.id:hover {
   align-items: start;
   column-gap: 12px;
   width: 100%;
-  padding: 12px var(--gut);
+  padding: 14px 16px;
   border: 0;
   background: transparent;
   text-align: left;
-  line-height: 1.6;
+  line-height: 1.55;
   transition: background-color 0.12s;
 }
 .attn .plain {
   display: grid;
   grid-template-columns: 9px minmax(0, 1fr);
   column-gap: 12px;
-  padding: 12px var(--gut);
-  line-height: 1.6;
+  padding: 14px 16px;
+  line-height: 1.55;
 }
 .attn .sw {
   margin-top: 6px;
@@ -527,6 +568,7 @@ button.id:hover {
 }
 .attn .what {
   color: var(--ink);
+  font: 400 14.5px/1.5 var(--f-serif);
   text-wrap: pretty;
 }
 .attn .what b {
@@ -546,19 +588,23 @@ button.id:hover {
   color: var(--warn);
 }
 .attn button:hover {
-  background: var(--band);
+  background: var(--band-soft);
+}
+.attn button:hover .what {
+  text-decoration: underline;
+  text-decoration-color: var(--rule-strong);
+  text-underline-offset: 3px;
 }
 .attn button:hover .id {
-  background: var(--act);
-  color: var(--on-act);
+  border-color: var(--ink);
 }
 .prompt {
   display: flex;
   align-items: center;
   gap: 12px;
   margin: 0;
-  padding: 18px var(--gut) 28px;
-  border-top: 1px solid var(--rule-soft);
+  padding: 24px var(--gut) 36px;
+  border-top: 1px solid var(--rule);
   color: var(--ink-3);
   font-size: 12.5px;
   text-wrap: pretty;
@@ -571,38 +617,39 @@ button.id:hover {
 
 /* ---------- selected: head ---------- */
 .head {
-  padding: 22px var(--gut) 20px;
+  padding: 32px var(--gut) 28px;
+  border-bottom: 1px solid var(--rule);
 }
 .head .value {
-  font: 600 52px/1 var(--f-mono);
+  font: 500 52px/1 var(--f-mono);
   letter-spacing: -0.04em;
-  color: var(--num);
+  color: var(--ink);
   font-feature-settings: "tnum", "lnum";
   overflow-wrap: anywhere;
 }
 .head .label {
-  margin-top: 10px;
-  font-size: 14px;
-  line-height: 1.45;
+  margin-top: 14px;
+  font: 400 18px/1.4 var(--f-serif);
   text-wrap: pretty;
 }
 .head .claim {
-  font: 500 17px/1.5 var(--f-mono);
-  letter-spacing: -0.01em;
+  font: 400 21px/1.4 var(--f-serif);
+  letter-spacing: -0.005em;
   text-wrap: pretty;
 }
 .head .claim code {
   color: inherit;
 }
 .head .claim + .label {
-  margin-top: 6px;
-  font-size: 12.5px;
+  margin-top: 8px;
+  font: 400 12.5px/1.5 var(--f-mono);
 }
 .head .claim mark {
   background: none;
-  color: var(--num);
+  color: var(--ink);
   font-weight: 600;
   text-decoration: underline;
+  text-decoration-color: var(--accent);
   text-decoration-thickness: 1.5px;
   text-underline-offset: 4px;
 }
@@ -610,8 +657,8 @@ button.id:hover {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px 10px;
-  margin-top: 14px;
+  gap: 8px 12px;
+  margin-top: 18px;
 }
 .head-meta .state {
   display: inline-flex;
@@ -623,29 +670,28 @@ button.id:hover {
 .head-act {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 16px;
+  gap: 10px;
+  margin-top: 24px;
 }
 
 /* ---------- selected: rests on ---------- */
 .rests {
-  padding: 14px var(--gut) 14px;
-  background: var(--field);
-  border-top: 1px solid var(--rule);
+  padding: 28px var(--gut) 28px;
   border-bottom: 1px solid var(--rule);
 }
-.rests .h {
-  margin-bottom: 4px;
+.rests ul {
+  border: 1px solid var(--rule);
+  border-radius: var(--r-card);
 }
 .rests li {
   display: grid;
   grid-template-columns: 9px minmax(0, 1fr) auto;
   align-items: baseline;
   column-gap: 12px;
-  padding: 9px 0;
+  padding: 12px 16px;
 }
 .rests li + li {
-  border-top: 1px dashed var(--rule);
+  border-top: 1px solid var(--rule-soft);
 }
 .rests li .sw {
   align-self: center;
@@ -672,14 +718,13 @@ button.id:hover {
   cursor: pointer;
 }
 .rests li[data-jump]:hover .what code {
-  color: var(--act);
   text-decoration: underline;
   text-decoration-thickness: 1px;
   text-underline-offset: 3px;
 }
 /* ---------- used by ---------- */
 .uses {
-  padding: 16px var(--gut) 4px;
+  padding: 28px var(--gut) 0;
 }
 .uses .btn svg {
   width: 12px;
@@ -698,28 +743,35 @@ button.id:hover {
   align-items: baseline;
   justify-content: space-between;
   gap: 12px;
-  padding: 22px var(--gut) 10px;
+  padding: 32px var(--gut) 16px;
 }
 .score-h .h {
   margin: 0;
 }
+.score:not(.uses-list) {
+  padding-bottom: 36px;
+}
 
+/* A row is a rail track and a step card. Rows never change colour: the card's
+   border carries the state (hover, read from, clicked). --node-y is where the
+   commit sits, level with the card's title line. */
 .row {
   --row-bg: var(--paper);
+  --node-y: 30px;
   position: relative;
   display: grid;
   grid-template-columns: var(--track) minmax(0, 1fr);
   padding-left: var(--margin);
-  background: var(--row-bg);
-  transition: background-color 0.12s;
 }
-.row:hover,
-.row.parent-band {
-  --row-bg: var(--band-soft);
+/* the gap between cards belongs to the step, so the rail runs through it */
+.score:not(.uses-list) > .row + .row {
+  --node-y: 44px;
 }
-.row.is-top,
-.row.band {
-  --row-bg: var(--band);
+.score:not(.uses-list) > .row + .row > .step {
+  padding-top: 14px;
+}
+.score:not(.uses-list) > .row + .row.has-conn {
+  --node-y: 72px;
 }
 /* the rail: a 2px line from the first commit to the last */
 .row .st {
@@ -735,75 +787,82 @@ button.id:hover {
   background: var(--graph);
 }
 .row:first-child .st::before {
-  top: 22px;
+  top: var(--node-y);
 }
 .row:last-child .st::before {
   bottom: auto;
-  height: 22px;
+  height: var(--node-y);
 }
 .row:only-child .st::before {
   display: none;
 }
 
-/* commits: solid = traced, amber ring = external, red ring = nothing behind it.
-   The halo is always the row's own ground, so a node cuts the rail cleanly. */
+/* commits: solid = traced, amber ring = external, dashed red ring = nothing
+   behind it. The halo is the paper, so a node cuts the rail cleanly. */
 .blk {
   position: absolute;
-  top: 16px;
+  top: calc(var(--node-y) - 6px);
   left: 9px;
   width: 12px;
   height: 12px;
   border-radius: 50%;
   background: var(--row-bg);
   box-shadow: 0 0 0 3px var(--row-bg);
-  transition:
-    background-color 0.12s,
-    box-shadow 0.12s;
 }
 .blk.full {
   background: var(--node);
 }
 .blk.partial {
-  box-shadow:
-    inset 0 0 0 2px var(--warn),
-    0 0 0 3px var(--row-bg);
+  border: 2px solid var(--warn);
 }
 .blk.ungrounded {
-  box-shadow:
-    inset 0 0 0 2px var(--stop),
-    0 0 0 3px var(--row-bg);
+  border: 2px dashed var(--stop);
 }
+/* the clicked commit: larger, ringed in the accent */
 .blk.top {
-  top: 14px;
+  top: calc(var(--node-y) - 8px);
   left: 7px;
   width: 16px;
   height: 16px;
-}
-.blk.top.partial {
   box-shadow:
-    inset 0 0 0 2.5px var(--warn),
-    0 0 0 3px var(--row-bg);
-}
-.blk.top.ungrounded {
-  box-shadow:
-    inset 0 0 0 2.5px var(--stop),
-    0 0 0 3px var(--row-bg);
+    0 0 0 3px var(--row-bg),
+    0 0 0 4.5px var(--accent);
 }
 
 .step {
   min-width: 0;
-  padding: 14px var(--gut) 16px 10px;
+  padding: 0 var(--gut) 0 6px;
 }
+.card {
+  padding: 18px 20px;
+  border: 1px solid var(--rule);
+  border-radius: var(--r-card);
+  background: var(--paper);
+  transition: border-color 0.15s;
+}
+.row:hover .card,
+.row.parent-band .card {
+  border-color: var(--rule-strong);
+}
+.row.is-top .card,
+.row.band .card {
+  border-color: var(--ink);
+}
+
 .step-h {
   display: flex;
   align-items: baseline;
-  gap: 8px;
+  gap: 10px;
   min-width: 0;
+}
+.step-h .id {
+  position: relative;
+  top: -1px;
 }
 .step-h .ttl {
   flex: 1;
   min-width: 0;
-  font: 500 13px/1.5 var(--f-mono);
+  font: 400 15.5px/1.45 var(--f-serif);
   text-wrap: pretty;
 }
 .step-h .ttl.clamp {
@@ -818,13 +877,14 @@ button.id:hover {
   font: 400 12px/1.2 var(--f-mono);
 }
 .step-h .ttl code {
+  font-size: 13.5px;
   font-weight: 500;
 }
 .step-h .fig {
   flex: none;
-  margin-left: 8px;
-  font: 600 16px/1 var(--f-mono);
-  color: var(--num);
+  margin-left: 12px;
+  font: 600 15px/1 var(--f-mono);
+  color: var(--ink);
   white-space: nowrap;
 }
 .step-h .fig.small {
@@ -836,16 +896,16 @@ button.id:hover {
 }
 
 .conn {
-  margin-bottom: 10px;
+  height: 28px;
+  padding-top: 4px;
   color: var(--ink-3);
-  font: 500 12px/1 var(--f-mono);
+  font: 500 12px/16px var(--f-mono);
 }
 /* a source's desc, under its mart */
 .sub {
-  margin-top: 4px;
+  margin-top: 6px;
   color: var(--ink-2);
-  font-size: 12.5px;
-  line-height: 1.5;
+  font: 400 14.5px/1.5 var(--f-serif);
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
@@ -856,17 +916,13 @@ button.id:hover {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
-  gap: 2px 8px;
-  margin-top: 6px;
+  gap: 4px 8px;
+  margin-top: 10px;
   color: var(--ink-3);
   font: 400 12px/1.6 var(--f-mono);
 }
-.step-h + .meta,
-.sub + .meta {
-  margin-top: 5px;
-}
-.row.is-top .step-h + .meta {
-  margin-top: 8px;
+.card > .meta:first-child {
+  margin-top: 0;
 }
 .meta .sep {
   color: var(--graph);
@@ -875,7 +931,7 @@ button.id:hover {
   font-size: 11.5px;
 }
 .meta b {
-  color: var(--num);
+  color: var(--ink);
   font-weight: 600;
 }
 .meta .warn {
@@ -896,6 +952,8 @@ button.id:hover {
 }
 .tog:hover {
   color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 .tog svg {
   width: 12px;
@@ -907,25 +965,33 @@ button.id:hover {
   rotate: 90deg;
 }
 
+/* what opens below the meta line sits under a hairline */
+.card > .meta + :is(.reads, .formula) {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--rule-soft);
+}
+
 .reads {
-  margin-top: 8px;
+  margin-top: 10px;
   color: var(--ink-2);
-  font-size: 12.5px;
-  line-height: 1.65;
+  font: 400 14px/1.6 var(--f-serif);
   text-wrap: pretty;
 }
-.reads code {
-  color: var(--ink);
-}
 .reads b {
-  color: var(--num);
+  color: var(--ink);
   font-weight: 600;
 }
 .reads .id {
   font-size: 12px;
 }
 .reads.cols {
-  margin-top: 4px;
+  color: var(--ink-3);
+  font: 400 12px/1.7 var(--f-mono);
+}
+.reads.cols code {
+  font-size: inherit;
+  color: var(--ink-2);
 }
 .reads .stamp {
   margin-right: 6px;
@@ -950,8 +1016,8 @@ button.id:hover {
 .formula {
   display: grid;
   grid-template-columns: 18px minmax(0, 1fr);
-  row-gap: 3px;
-  margin-top: 10px;
+  row-gap: 4px;
+  margin-top: 12px;
   font: 500 14px/1.6 var(--f-mono);
   font-variant-numeric: tabular-nums;
 }
@@ -963,27 +1029,31 @@ button.id:hover {
   padding: 0 4px;
 }
 .formula > :nth-last-child(-n + 2) {
-  margin-top: 5px;
-  padding-top: 6px;
-  border-top: 1px solid var(--rule);
+  margin-top: 6px;
+  padding-top: 8px;
+  border-top: 1px solid var(--rule-soft);
 }
 .formula .res {
   font-size: 16px;
   font-weight: 600;
-  color: var(--num);
+  color: var(--ink);
 }
 
-/* sql snippet */
+/* sql snippet: the bottom of its card, full width under a hairline, on the
+   one recessed tone the panel keeps */
 .snip {
-  margin-top: 10px;
+  margin: 16px -20px -18px;
   background: var(--field);
-  border: 1px solid var(--rule);
-  border-radius: 3px;
+  border-top: 1px solid var(--rule);
+  border-radius: 0 0 calc(var(--r-card) - 1px) calc(var(--r-card) - 1px);
   overflow: hidden;
+}
+.reads.cols + .snip {
+  margin-top: 14px;
 }
 .snip pre {
   margin: 0;
-  padding: 9px 11px;
+  padding: 14px 20px;
   font: 400 12.5px/1.6 var(--f-mono);
   color: var(--ink);
   white-space: pre;
@@ -1010,8 +1080,8 @@ button.id:hover {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 5px 6px 5px 11px;
-  border-top: 1px dashed var(--rule);
+  padding: 6px 8px 6px 20px;
+  border-top: 1px solid var(--rule-soft);
 }
 .snip-bar .muted {
   font-size: 12px !important;
@@ -1020,8 +1090,8 @@ button.id:hover {
   font-size: 12px;
 }
 .snip-bar .btn {
-  height: 24px;
-  padding: 0 8px;
+  height: 26px;
+  padding: 0 10px;
   font-size: 11.5px;
 }
 .snip-bar .btn svg {
@@ -1077,9 +1147,9 @@ button.id:hover {
   height: 22px;
   margin-left: 2px;
   border: 0;
-  border-radius: 3px;
+  border-radius: 4px;
   background: transparent;
-  color: var(--act);
+  color: var(--ink-2);
   transition: background-color 0.15s;
 }
 .tw svg {
@@ -1092,7 +1162,7 @@ button.id:hover {
   rotate: 180deg;
 }
 .tw:hover {
-  background: var(--act-wash);
+  background: var(--band);
 }
 .tw.none {
   visibility: hidden;
@@ -1120,7 +1190,7 @@ button.id:hover {
 .status {
   position: relative;
   z-index: 5;
-  background: var(--field);
+  background: var(--paper);
   border-top: 1px solid var(--rule);
 }
 
@@ -1133,9 +1203,9 @@ button.id:hover {
 
 @media (max-width: 760px) {
   :root {
-    --gut: 16px;
+    --gut: 18px;
     --margin: 8px;
-    --status-h: 36px;
+    --status-h: 40px;
   }
   .app {
     display: block;
@@ -1183,7 +1253,16 @@ button.id:hover {
     border-top: 1px solid var(--rule);
   }
   .head .value {
-    font-size: 50px;
+    font-size: 48px;
+  }
+  .card {
+    padding: 18px 16px 16px;
+  }
+  .snip {
+    margin: 14px -16px -16px;
+  }
+  .snip pre {
+    padding: 12px 16px;
   }
   .rests li {
     grid-template-columns: 9px minmax(0, 1fr);
@@ -1221,8 +1300,8 @@ button.id:hover {
   display: flex;
   flex-wrap: nowrap;
   align-items: center;
-  gap: 4px 14px;
-  padding: 8px var(--gut);
+  gap: 4px 16px;
+  padding: 10px var(--gut);
 }
 .statusbar .link {
   display: inline-flex;
@@ -1250,7 +1329,7 @@ button.id:hover {
   white-space: nowrap;
 }
 .statusbar .holds {
-  padding-left: 14px;
+  padding-left: 16px;
   border-left: 1px solid var(--rule);
 }
 .statusbar .bar-line > .bar-r {
@@ -1271,8 +1350,11 @@ button.id:hover {
   min-width: 0;
 }
 .statusbar .here-id {
-  color: var(--ink-2);
-  font-weight: 600;
+  padding: 0 5px;
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  color: var(--ink);
+  font-weight: 500;
 }
 .statusbar .here-what {
   overflow: hidden;
@@ -1280,7 +1362,7 @@ button.id:hover {
   white-space: nowrap;
 }
 .statusbar .here-what b {
-  color: var(--num);
+  color: var(--ink);
   font-weight: 600;
 }
 .statusbar .key {
@@ -1290,7 +1372,7 @@ button.id:hover {
 .statusbar kbd {
   padding: 0 4px;
   border: 1px solid var(--rule);
-  border-radius: 3px;
+  border-radius: 4px;
   font: inherit;
   font-size: 11px;
 }
@@ -1308,31 +1390,35 @@ button.id:hover {
   bottom: 100%;
   max-height: 40vh;
   overflow-y: auto;
-  padding: 4px var(--gut);
-  background: var(--field);
+  padding: 8px var(--gut);
+  background: var(--paper);
   border-top: 1px solid var(--rule);
 }
 .statusbar .drawer li {
   display: flex;
   align-items: baseline;
-  gap: 10px;
-  padding: 6px 0;
+  gap: 12px;
+  padding: 10px 0;
   line-height: 1.55;
 }
 .statusbar .drawer li + li {
-  border-top: 1px dashed var(--rule-soft);
+  border-top: 1px solid var(--rule-soft);
 }
 .statusbar .drawer b {
   color: var(--ink-2);
 }
+/* a callout is drawn, not filled: a border in the warning colour, words in ink */
 .c3 {
-  margin-top: 12px;
-  color: var(--warn-ink);
-  background: var(--warn-wash);
-  padding: 7px 10px;
-  border-radius: 3px;
+  margin-top: 18px;
+  padding: 10px 14px;
+  border: 1px solid var(--warn);
+  border-radius: var(--r-ctl);
+  color: var(--ink);
   font-size: 12.5px;
   line-height: 1.55;
+}
+.c3 b {
+  color: var(--warn);
 }
 
 /* after the base status bar rules, so these win at phone width */

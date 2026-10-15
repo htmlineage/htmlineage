@@ -296,13 +296,17 @@ function stepRow(id, { beatStart, word, lane, isTop }) {
     line || right
       ? `<div class="step-h">${isTop ? "" : idBtn(id)}<span class="ttl${clamp}"${clamp ? tip : ""}>${line}</span>${right}</div>`
       : "";
-  return `<div class="row${beatStart ? " beat-start" : " beat-cont"}${isTop ? " is-top" : ""}" data-row="${esc(id)}">
+  // the connector sits on the rail, above the step's card
+  const conn = !isTop && beatStart && word;
+  return `<div class="row${beatStart ? " beat-start" : " beat-cont"}${isTop ? " is-top" : ""}${conn ? " has-conn" : ""}" data-row="${esc(id)}">
       <div class="st"><span class="blk ${state(id)}${lane ? " r" : ""}${isTop ? " top" : ""}"></span></div>
       <article class="step" aria-label="${esc(stepWord(id))} ${esc(id)}">
-        ${!isTop && beatStart && word ? `<p class="conn">${esc(word)}</p>` : ""}
-        ${head}${sub}
-        ${meta.length ? `<p class="meta">${meta.join(`<span class="sep" aria-hidden="true">·</span>`)}</p>` : ""}
-        ${more}
+        ${conn ? `<p class="conn">${esc(word)}</p>` : ""}
+        <div class="card">
+          ${head}${sub}
+          ${meta.length ? `<p class="meta">${meta.join(`<span class="sep" aria-hidden="true">·</span>`)}</p>` : ""}
+          ${more}
+        </div>
       </article>
     </div>`;
 }
