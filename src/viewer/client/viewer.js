@@ -1,5 +1,5 @@
 // The viewer page: click a number, see how it was computed, read from the
-// source up. All the logic with no page in it is in lineage.js; this file is
+// number down to its sources. All the logic with no page in it is in lineage.js; this file is
 // the DOM, the events, the report frame and the clipboard.
 import {
   exprParts,
@@ -17,8 +17,13 @@ import {
   highlightSql,
   mismatches,
   nodesOf,
+  reportCounts,
   reportSql,
+  selection,
+  stepFacts,
+  stepHead,
   stepSql,
+  stepText,
   title,
   untraced,
 } from "./lineage.js";
@@ -36,7 +41,6 @@ const esc = (s) =>
 const ICON = {
   back: '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M10 3 5 8l5 5"/></svg>',
   copy: '<svg viewBox="0 0 16 16" aria-hidden="true"><rect x="5" y="5" width="9" height="9" rx="1"/><path d="M11 5V3a1 1 0 0 0-1-1H3a1 1 0 0 0-1 1v7a1 1 0 0 0 1 1h2"/></svg>',
-  up: '<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M6 10.5V1.5M2.5 5 6 1.5 9.5 5"/></svg>',
   chev: '<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M4.5 2.5 8 6l-3.5 3.5"/></svg>',
   caret:
     '<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 7.5 6 4l3.5 3.5"/></svg>',
@@ -52,12 +56,13 @@ const S = {
   usedBy: {},
   sel: null,
   history: [],
-  openSnips: new Set(),
+  sqlOpen: new Map(),
   showUses: false,
   upOpen: new Set(),
   counts: {},
   cycle: {},
   drawer: false,
+  flash: null,
 };
 
 function load(fx) {
@@ -68,7 +73,7 @@ function load(fx) {
     for (const p of n.from || []) (S.usedBy[p] ||= []).push(id);
   S.sel = null;
   S.history = [];
-  S.openSnips = new Set();
+  S.sqlOpen = new Map();
   S.showUses = false;
   S.upOpen = new Set();
   S.cycle = {};
@@ -76,23 +81,13 @@ function load(fx) {
 }
 
 // ---------- reading the graph ----------
-const STEP = {
-  source: "Source",
-  view: "View",
-  figure: "Figure",
-  insight: "Claim",
-};
-const stepWord = (id) => STEP[S.nodes[id]?.step] || "Missing";
+const stepWord = (id) => stepHead(S.fx.graph, id).kind;
 // The swatch class for what a node rests on.
 const SWATCH = { sql: "full", file: "partial", none: "ungrounded" };
 const state = (id) => SWATCH[groundOf(S.fx, id)];
 const val = (id) => {
   const n = S.nodes[id];
   return n ? String(n.display ?? n.value ?? "") : "";
-};
-const lead = (sql) => {
-  const m = /^\s*--\s*(.+)/.exec(sql || "");
-  return m ? m[1].trim() : "";
 };
 const nameOf = (id) => title(S.fx.graph, id);
 const visual = (id) => {
@@ -135,7 +130,7 @@ const STATE_WORD = {
 const sourceRow = (row, { count }) => {
   const mart = row.kind === "sql";
   const numbers = count
-    ? ` · ${row.numbers} number${row.numbers === 1 ? "" : "s"}`
+    ? ` · ${row.numbers}&nbsp;number${row.numbers === 1 ? "" : "s"}`
     : "";
   const when = mart
     ? `${row.period ? esc(period(row.period)) : "No period"}${row.pinned ? "" : " · not pinned"}${numbers}`
@@ -153,106 +148,156 @@ const c3Values = (m) =>
     .filter(Boolean)
     .join(" · ");
 
-function snippet(id) {
-  const n = S.nodes[id];
-  if (!n?.sql) return "";
-  let lines = n.sql.replace(/\s+$/, "").split("\n");
-  if (/^\s*--/.test(lines[0])) lines = lines.slice(1);
-  const SHOW = 4;
-  const extra = lines.length - SHOW;
-  const open = S.openSnips.has(id);
-  const shown = open || extra <= 1 ? lines : lines.slice(0, SHOW);
-  return `<div class="snip"><pre>${highlightSql(shown.join("\n"))}</pre><div class="snip-bar">${
-    extra > 1
-      ? `<button class="link" type="button" data-more="${esc(id)}" aria-expanded="${open}">${open ? "Show less" : `… ${extra} more lines`}</button>`
-      : `<span class="muted" style="font-size:12.5px">${lines.length} line${lines.length > 1 ? "s" : ""}</span>`
-  }<span class="gap"></span>${copyBtn("data-copy-sql", id, stepSql(S.fx, id), "Copy SQL", "")}</div></div>`;
-}
+const colsLine = (cols) =>
+  Array.isArray(cols) && cols.length
+    ? `<p class="reads cols">Columns: ${cols.map((c) => `<code>${esc(c)}</code>`).join(", ")}</p>`
+    : "";
 
-// The figures column: what the step yields.
-function fig(id) {
+// A step's SQL, highlighted, with Copy. A source's or view's columns come
+// first, and an expression figure shows its expression as written.
+function sqlBlock(id) {
   const n = S.nodes[id];
-  if (!n) return "";
-  if (n.step === "figure") return `<span class="fig">${esc(val(id))}</span>`;
-  if (n.step === "source" && n.kind === "sql")
-    return `<span class="fig small">${n.period ? esc(`${fmtDate(n.period.from)} – ${fmtDate(n.period.to)}`) : ""}</span>`;
-  if (n.step === "view")
-    return `<span class="fig small">${esc(visual(id))}</span>`;
-  return "";
+  const sql = typeof n.sql === "string" && n.sql.trim() ? n.sql : "";
+  const shown = (sql || String(n.expr ?? "")).replace(/\s+$/, "");
+  const lines = shown.split("\n").length;
+  const cols = n.step === "figure" ? "" : colsLine(n.columns);
+  return `${cols}<div class="snip"><pre>${highlightSql(shown)}</pre><div class="snip-bar"><span class="muted" style="font-size:12.5px">${lines} line${lines > 1 ? "s" : ""}</span><span class="gap"></span>${sql ? copyBtn("data-copy-sql", id, stepSql(S.fx, id), "Copy SQL", "") : ""}</div></div>`;
 }
 
 // How many places a node has on the page, as the report said when it loaded.
 const pageCount = (id) => S.counts[id] || 0;
 
-// What the step reads and does, in one or two lines, then its evidence.
-function body(id, isTop) {
+// What a node yields, at the right of its row in the used-by list.
+function fig(id) {
   const n = S.nodes[id];
-  if (!n)
-    return `<p class="reads"><span class="stamp stop">Missing</span> Something here reads from <code>${esc(id)}</code>, but there is no such node in the graph.</p>`;
-  if (n.ungrounded) {
-    return `<div class="ext-body"><span class="stamp stop">Nothing behind it</span><p>No source, view or figure was recorded for this. Ask the builder where it comes from.</p></div>`;
-  }
-  const from = (n.from || []).map(idBtn).join(" ");
-  let h = "";
-  if (n.step === "source") {
-    if (n.kind !== "sql") {
-      h += `<div class="ext-body"><span class="stamp ext">External ${esc(n.type || "source")}</span><p>${n.given ? esc(n.given) + ". " : ""}Trailline can't see inside it; ask the builder for the file.</p></div>`;
-      if (n.columns)
-        h += `<p class="reads cols">Columns: ${n.columns.map((c) => `<code>${esc(c)}</code>`).join(", ")}</p>`;
-      return h;
-    }
-    const note = lead(n.sql);
-    h += `<p class="reads">${note ? `${esc(note)}.` : `Reads <code>${wb(n.mart || "an unnamed mart")}</code>.`}</p>`;
-    if (n.columns)
-      h += `<p class="reads cols">Columns: ${n.columns.map((c) => `<code>${esc(c)}</code>`).join(", ")}</p>`;
-    return h + snippet(id);
-  }
-  if (n.step === "view") {
-    const shown = pageCount(id)
-      ? ` On the page as a <button class="link" type="button" data-scroll="${esc(id)}">${esc(visual(id))}</button>.`
-      : "";
-    h += `<p class="reads">Reads ${from}, gives ${(n.columns || []).map((c) => `<code>${esc(c)}</code>`).join(", ")}.${shown}</p>`;
-    return h + snippet(id);
-  }
-  if (n.step === "figure") {
-    if (n.expr) {
-      const tokens = (fn) =>
-        exprParts(n.expr, (t) => Boolean(S.nodes[t]))
-          .map((p) => (p.id ? fn(p.id) : esc(p.text)))
-          .join("");
-      h += `<p class="reads">${isArithmetic(n.expr) ? "Arithmetic" : "A SQL expression"} over ${from}.</p>`;
-      h += `<div class="formula"><span class="eq"></span><span>${tokens((t) => idBtn(t))}</span><span class="eq">=</span><span>${tokens((t) => esc(val(t)))}</span><span class="eq">=</span><span class="res res-line">${esc(val(id))}</span></div>`;
-      return h;
-    }
-    h += `<p class="reads">Picks one value from ${from}.</p>`;
-    return h + snippet(id);
-  }
-  if (n.step === "insight") {
-    const parts = (n.from || []).map(
-      (p) =>
-        `${idBtn(p)}${S.nodes[p]?.step === "figure" ? ` <b>${esc(val(p))}</b>` : ` <span class="muted">${esc(stepWord(p).toLowerCase())}</span>`}`,
-    );
-    h += `<p class="reads">${isTop ? "Rests on" : `“${esc(n.text)}” rests on`} ${parts.join(", ")}.</p>`;
-    return h;
-  }
-  return h;
+  if (n?.step === "figure") return `<span class="fig">${esc(val(id))}</span>`;
+  if (n?.step === "view")
+    return `<span class="fig small">${esc(visual(id))}</span>`;
+  return "";
 }
 
-function stepRow(id, { beatStart, n, lane, isTop, i }) {
-  const node = S.nodes[id];
-  const t = nameOf(id);
-  const ttl =
-    node?.step === "source" && node.kind === "sql"
-      ? `<code>${wb(t)}</code>`
-      : isTop
-        ? `<span class="muted" style="font-weight:500">${node?.step === "insight" ? "The claim you clicked" : "The number you clicked"}</span>`
-        : esc(t);
-  return `<div class="row${beatStart ? " beat-start" : " beat-cont"}${isTop ? " is-top" : ""}" data-row="${esc(id)}">
-      <div class="n">${n}</div>
-      <div class="st"><span class="blk ${state(id)}${lane ? " r" : ""}${isTop ? " top" : ""}" style="--i:${i}"></span></div>
+// The formula of an expression figure: with ids, then values, then the result.
+function formula(f) {
+  const tokens = (fn) =>
+    exprParts(f.expr, (t) => Boolean(S.nodes[t]))
+      .map((p) => (p.id ? fn(p.id) : esc(p.text)))
+      .join("");
+  return `<div class="formula" title="${isArithmetic(f.expr) ? "Arithmetic" : "A SQL expression"} over other numbers"><span class="eq"></span><span>${tokens((t) => idBtn(t))}</span><span class="eq">=</span><span>${tokens((t) => esc(val(t)))}</span><span class="eq">=</span><span class="res res-line">${esc(f.value ?? "")}</span></div>`;
+}
+
+// "N columns", with the names on hover.
+const colsMeta = (cols) =>
+  `<span title="${esc(cols.join(", "))}">${cols.length} column${cols.length === 1 ? "" : "s"}</span>`;
+
+// One step of the chain, in three parts:
+//   line  its title from stepHead: the desc, or what the step is called;
+//         a source leads with its mart and puts its desc under it
+//   meta  kind, then the facts from its fields, then the SQL toggle
+//   more  a note, the formula, the SQL when open
+// The clicked step drops what the head already shows: stepHead gives it no
+// kind or value.
+function stepRow(id, { beatStart, word, lane, isTop }) {
+  const n = S.nodes[id];
+  const head = stepHead(S.fx.graph, id, { top: isTop });
+  const { note, show } = stepText(S.fx.graph, id);
+  const f = n && !n.ungrounded ? stepFacts(S.fx, id) : null;
+  const from = (ids) => (ids || []).map(idBtn).join(" ");
+
+  let line = "";
+  let sub = "";
+  let right = "";
+  let clamped = false;
+  const meta = [];
+  if (head.kind !== null)
+    meta.push(`<span class="kind">${esc(head.kind)}</span>`);
+
+  if (!n) {
+    line = `<code>${esc(id)}</code>`;
+    meta.push(`<span class="stop">not in the graph</span>`);
+  } else if (n.ungrounded) {
+    line = esc(head.title ?? "");
+    meta.push(
+      `<span class="stop">nothing behind it · ask the builder where it comes from</span>`,
+    );
+  } else {
+    // a source's title is its mart, a name rather than words to clamp
+    clamped = (isTop || n.step !== "source") && Boolean(head.title);
+    line =
+      n.step === "source" && !isTop
+        ? `<code>${wb(head.title ?? "(no name)")}</code>`
+        : esc(head.title ?? "");
+    if (head.sub)
+      sub = `<p class="sub" title="${esc(head.sub)}">${esc(head.sub)}</p>`;
+    if (head.value !== null)
+      right = `<span class="fig">${esc(head.value)}</span>`;
+    if (f.kind === "sql") {
+      meta.push(
+        `<span${f.pinned ? "" : ` class="warn"`}>${esc(f.period ? period(f.period) : "no period")}${f.pinned ? "" : " · not pinned"}</span>`,
+      );
+      if (f.how) meta.push(esc(f.how));
+    } else if (f.kind === "external") {
+      meta.push(
+        `<span class="warn">external ${esc(n.type || "file")} · Trailline can't see inside it</span>`,
+      );
+      if (f.columns.length) meta.push(colsMeta(f.columns));
+    } else if (f.kind === "view") {
+      if (head.kind !== null)
+        right = pageCount(id)
+          ? `<button class="link fig-link" type="button" data-scroll="${esc(id)}" title="Show it on the page">${esc(visual(id))}</button>`
+          : `<span class="fig small">${esc(visual(id))}</span>`;
+      if (f.from.length) meta.push(`from ${from(f.from)}`);
+      if (f.columns.length) meta.push(colsMeta(f.columns));
+    } else if (f.kind === "pick") {
+      if (f.from.length) meta.push(`picks from ${from(f.from)}`);
+    } else if (f.kind === "claim") {
+      const parts = f.from.map(
+        (p) =>
+          `${idBtn(p)}${S.nodes[p]?.step === "figure" ? ` <b>${esc(val(p))}</b>` : ""}`,
+      );
+      meta.push(
+        parts.length
+          ? `rests on ${parts.join(", ")}`
+          : `<span class="stop">rests on nothing · ask the builder where it comes from</span>`,
+      );
+    }
+  }
+
+  const open = show !== null && (S.sqlOpen.get(id) ?? show.open);
+  if (show)
+    meta.push(
+      `<button class="tog" type="button" data-sql="${esc(id)}" aria-expanded="${open}">${ICON.chev}${esc(show.label)}</button>`,
+    );
+
+  // the clicked step has no kind word, so its facts start the sentence
+  if (isTop && meta.length)
+    meta[0] = meta[0].replace(
+      /^(<span[^>]*>)?([a-z])/,
+      (_, tag = "", c) => tag + c.toUpperCase(),
+    );
+
+  let more = "";
+  if (note) more += `<p class="reads"><b>Note</b> ${esc(note)}</p>`;
+  if (f?.kind === "formula") more += formula(f);
+  if (open) more += sqlBlock(id);
+
+  // a long desc is cut to two lines until its SQL is open; hover shows it whole
+  const clamp = clamped && !open ? " clamp" : "";
+  const tip = clamp ? ` title="${esc(head.title)}"` : "";
+  const titleRow =
+    line || right
+      ? `<div class="step-h">${isTop ? "" : idBtn(id)}<span class="ttl${clamp}"${tip}>${line}</span>${right}</div>`
+      : "";
+  // the connector sits on the rail, above the step's card
+  const conn = word !== null && beatStart;
+  return `<div class="row${beatStart ? " beat-start" : " beat-cont"}${isTop ? " is-top" : ""}${conn ? " has-conn" : ""}" data-row="${esc(id)}">
+      <div class="st"><span class="blk ${state(id)}${lane ? " r" : ""}${isTop ? " top" : ""}"></span></div>
       <article class="step" aria-label="${esc(stepWord(id))} ${esc(id)}">
-        <div class="step-h${node?.step === "source" ? " src" : ""}">${idBtn(id)}<span class="kind">${esc(stepWord(id))}</span><span class="ttl">${ttl}</span>${fig(id)}</div>
-        ${body(id, isTop)}
+        ${conn ? `<p class="conn">${esc(word)}</p>` : ""}
+        <div class="card">
+          ${titleRow}${sub}
+          ${meta.length ? `<p class="meta">${meta.join(`<span class="sep" aria-hidden="true">·</span>`)}</p>` : ""}
+          ${more}
+        </div>
       </article>
     </div>`;
 }
@@ -277,7 +322,11 @@ function renderSummary() {
   const open = untraced(S.fx);
   const lede = [lines.numbers, lines.claims]
     .filter(Boolean)
-    .map((l) => `<p class="lede-sub">${esc(l)}</p>`)
+    .map((l) => {
+      // the first sentence leads; the counts that follow sit quieter under it
+      const [lead, ...more] = l.split(/(?<=\.)\s+/);
+      return `<p class="lede-sub">${esc(lead)}${more.length ? `<span class="lede-more">${esc(more.join(" "))}</span>` : ""}</p>`;
+    })
     .join("");
   return `<div class="sec">${lede}</div>
       ${built.length ? `<div class="sec"><h2 class="h">Built on</h2><ul class="built">${built.map((r) => sourceRow(r, { count: true })).join("")}</ul></div>` : ""}
@@ -287,6 +336,25 @@ function renderSummary() {
 }
 
 // ---------- the status bar ----------
+// Left: what check said. Middle: what the report holds. Right: what is
+// selected, or a passing message ("Copied to the clipboard").
+const many = (n, one) => `${n} ${one}${n === 1 ? "" : "s"}`;
+function holds() {
+  const { numbers, claims, views, sources } = reportCounts(S.fx);
+  return [
+    many(numbers, "number"),
+    many(claims, "claim"),
+    many(views, "view"),
+    many(sources, "source"),
+  ].join(" · ");
+}
+function here({ id, kind, value, name }) {
+  const what =
+    value === null
+      ? esc(name ?? "")
+      : `<b>${esc(value)}</b> ${esc(name ?? "")}`;
+  return `<span class="here" title="${esc(kind)} ${esc(id)}: ${esc(name ?? "")}"><span class="here-id">${esc(id)}</span><span class="kind">${esc(kind)}</span><span class="here-what">${what}</span></span><span class="key"><kbd>Esc</kbd> back</span>`;
+}
 function statusBar() {
   const { line, issues, reason } = checkStatus(S.fx);
   const drawer =
@@ -294,11 +362,15 @@ function statusBar() {
       ? `<ul class="drawer">${issues.map((i) => `<li>${i.node && S.nodes[i.node] ? idBtn(i.node) : ""}<span><b>${esc(i.code)}</b> ${codeify(i.message)}</span></li>`).join("")}</ul>`
       : "";
   const label = `${esc(line)}${issues.length ? ` ${ICON.chev}` : ""}`;
-  return `<div class="statusbar${reason ? " bad" : ""}">${drawer}<div class="bar-line">${
-    issues.length
-      ? `<button class="link" type="button" data-status aria-expanded="${S.drawer}">${label}</button>`
-      : `<span>${label}</span>`
-  }${reason ? `<span class="reason">${esc(reason)}</span>` : ""}</div></div>`;
+  const check = issues.length
+    ? `<button class="link" type="button" data-status aria-expanded="${S.drawer}">${label}</button>`
+    : `<span>${label}</span>`;
+  const right = S.flash
+    ? `<span class="flash${S.flash.warn ? " warn" : ""}">${esc(S.flash.msg)}</span>`
+    : S.sel
+      ? here(selection(S.fx.graph, S.sel))
+      : "";
+  return `<div class="statusbar${reason ? " bad" : ""}">${drawer}<div class="bar-line">${check}${reason ? `<span class="reason">${esc(reason)}</span>` : ""}<span class="holds">${holds()}</span><span class="bar-r">${right}</span></div></div>`;
 }
 
 // ---------- selected state ----------
@@ -365,7 +437,7 @@ function renderSelected(id) {
     rows.reverse();
     usesList = `<div class="score uses-list">${rows
       .map(({ u, depth }) => {
-        return `<div class="row" data-row="${esc(u)}"><div class="n">${depth ? "" : ""}</div><div class="st"><span class="blk${depth % 2 ? " r" : ""}"></span></div>
+        return `<div class="row" data-row="${esc(u)}"><div class="st"><span class="blk${depth % 2 ? " r" : ""}"></span></div>
           <div class="step"><div class="step-h" style="padding-left:${depth * 14}px">${idBtn(u)}<span class="kind">${esc(stepWord(u))}</span><span class="ttl">${esc(nameOf(u))}</span>${fig(u)}<button class="tw${(S.usedBy[u] || []).length ? "" : " none"}" type="button" data-upopen="${esc(u)}" aria-expanded="${S.upOpen.has(u)}" title="What uses ${esc(u)}">${ICON.caret}</button></div></div></div>`;
       })
       .join(
@@ -375,24 +447,21 @@ function renderSelected(id) {
 
   // the score
   const bs = beats(S.fx.graph, id);
-  const total = bs.length;
   const scoreRows = bs
     .map((b) =>
       b.ids
         .map((x, k) =>
           stepRow(x, {
             beatStart: k === 0,
-            n: b.n,
+            word: b.word,
             lane: k % 2 === 1,
             isTop: x === id,
-            i: 0,
           }),
         )
         .join(""),
     )
     .join("");
-  const score = `<div class="score-h"><h2 class="h">How it was computed</h2><span class="read">${ICON.up}Read from step 1 up</span></div><div class="score" id="score">${scoreRows}</div>
-      <p class="end">${total > 1 ? `Step 1 is where the data comes from. Each step above reads from the ones below it.` : n.ungrounded ? "" : "This is where the data comes from."}</p>`;
+  const score = `<div class="score-h"><h2 class="h">How it was computed</h2></div><div class="score" id="score">${scoreRows}</div>`;
 
   return head + rests + uses + usesList + score;
 }
@@ -409,24 +478,11 @@ function nav() {
   }</div>`;
 }
 
-function render({ rise = false, keepScroll = false } = {}) {
+function render({ keepScroll = false } = {}) {
   const pane = $("#lineage");
   const top = pane.scrollTop;
-  pane.innerHTML =
-    nav() + (S.sel ? renderSelected(S.sel) : renderSummary()) + statusBar();
-  if (rise) {
-    const sc = $("#score", pane);
-    if (sc) {
-      // the blocks rise once, from step 1 up
-      const rows = [...sc.querySelectorAll(".row")];
-      rows
-        .reverse()
-        .forEach((r, k) =>
-          r.querySelector(".blk")?.style.setProperty("--i", k),
-        );
-      sc.classList.add("rise");
-    }
-  }
+  pane.innerHTML = nav() + (S.sel ? renderSelected(S.sel) : renderSummary());
+  paintStatus();
   pane.scrollTop = keepScroll ? top : 0;
   paintPage();
   writeHash();
@@ -477,7 +533,7 @@ function select(id, { fromPage = false, push = true } = {}) {
   S.sel = id;
   S.showUses = false;
   S.upOpen = new Set();
-  render({ rise: true });
+  render();
   if (!fromPage && pageCount(id)) {
     S.cycle[id] = -1;
     scrollPage(id);
@@ -489,7 +545,7 @@ function back() {
   if (prev) {
     S.sel = prev;
     S.showUses = false;
-    render({ rise: true });
+    render();
     if (pageCount(prev)) {
       S.cycle[prev] = -1;
       scrollPage(prev);
@@ -519,7 +575,7 @@ function execCopy(text) {
 
 async function copy(text, btn) {
   if (!(await copyText(text, { clipboard: navigator.clipboard, execCopy }))) {
-    return toast("Could not copy to the clipboard");
+    return toast("Could not copy to the clipboard", { warn: true });
   }
   if (btn) {
     const old = btn.innerHTML;
@@ -533,24 +589,37 @@ async function copy(text, btn) {
   toast("Copied to the clipboard");
 }
 
-let toastT;
-function toast(msg) {
-  let t = $(".toast");
-  if (!t) {
-    t = document.createElement("div");
-    t.className = "toast";
-    t.setAttribute("role", "status");
-    document.body.appendChild(t);
-  }
-  t.textContent = msg;
-  t.classList.add("on");
-  clearTimeout(toastT);
-  toastT = setTimeout(() => t.classList.remove("on"), 1600);
+// The status bar is drawn again when the selection or a message changes;
+// keyboard focus on its button stays put.
+function paintStatus() {
+  const status = $("#status");
+  const focused = status.contains(document.activeElement);
+  status.innerHTML = statusBar();
+  if (focused) $("[data-status]", status)?.focus({ preventScroll: true });
+}
+
+// A message at the right of the status bar for a moment, read out by the live
+// region beside it. A failure is styled as a warning. The region is emptied
+// first so that the same message twice is announced twice.
+let flashT;
+let sayT;
+function toast(msg, { warn = false } = {}) {
+  S.flash = { msg, warn };
+  const say = $("#say");
+  say.textContent = "";
+  clearTimeout(sayT);
+  sayT = setTimeout(() => (say.textContent = msg), 50);
+  paintStatus();
+  clearTimeout(flashT);
+  flashT = setTimeout(() => {
+    S.flash = null;
+    paintStatus();
+  }, 1800);
 }
 
 // ---------- events in the panel ----------
 const pane = $("#lineage");
-pane.addEventListener("click", (e) => {
+const onClick = (e) => {
   const t = e.target.closest("button, a");
   if (!t) return;
   if (t.dataset.go) return select(t.dataset.go);
@@ -560,10 +629,10 @@ pane.addEventListener("click", (e) => {
   }
   if (t.hasAttribute("data-back")) return back();
   if (t.hasAttribute("data-home")) return home();
-  if (t.dataset.more) {
-    S.openSnips.has(t.dataset.more)
-      ? S.openSnips.delete(t.dataset.more)
-      : S.openSnips.add(t.dataset.more);
+  if (t.dataset.sql) {
+    const id = t.dataset.sql;
+    const { show } = stepText(S.fx.graph, id);
+    S.sqlOpen.set(id, !(S.sqlOpen.get(id) ?? show.open));
     return render({ keepScroll: true });
   }
   if (t.dataset.copySql) return copy(stepSql(S.fx, t.dataset.copySql).sql, t);
@@ -579,7 +648,9 @@ pane.addEventListener("click", (e) => {
     S.upOpen.has(u) ? S.upOpen.delete(u) : S.upOpen.add(u);
     return render({ keepScroll: true });
   }
-});
+};
+pane.addEventListener("click", onClick);
+$("#status").addEventListener("click", onClick);
 // hovering a step bands it, bands what it reads from, and outlines it on the page
 pane.addEventListener("mouseover", (e) => {
   const row = e.target.closest(".row[data-row]");

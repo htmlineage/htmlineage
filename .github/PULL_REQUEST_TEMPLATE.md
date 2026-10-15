@@ -1,7 +1,7 @@
 <!--
 PR title must follow Conventional Commits: <type>: <lowercase summary>
 e.g. "feat: add sql composer", "fix: handle empty view", "docs: update readme"
-Allowed types: feat, fix, docs, chore, refactor, test, build, ci, perf, revert
+Allowed types: feat, fix, docs, chore, refactor, test, build, ci, perf, style, revert
 -->
 
 ## What & why

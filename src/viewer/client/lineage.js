@@ -125,7 +125,23 @@ export function headline({ numbers, claims }) {
 }
 
 /**
- * One row per source: what it is, its period, whether check found its dates
+ * Whether check left a sql source's period pinned. Any C7 on it is a problem
+ * with the period except one that is only about `mart` or `columns`; C7's
+ * message parts are fixed strings, joined with "; ".
+ */
+function isPinned(data, id) {
+  const aboutPeriod = (part) => {
+    const missing = /^sql source is missing (.*)$/.exec(part);
+    if (!missing) return true;
+    return /`(period|sql)`/.test(missing[1]);
+  };
+  return !data.summary.issues
+    .filter((i) => i.code === "C7" && i.node === id)
+    .some((i) => i.message.split("; ").some(aboutPeriod));
+}
+
+/**
+ * One row per source: what it is, its period, whether check found its period
  * unpinned (a C7), and how many figures rest on it at any depth.
  * @returns {({ node: string, kind: "sql", name: string | null, period: object | null, pinned: boolean, numbers: number } | { node: string, kind: "external", name: string | null, numbers: number })[]}
  */
@@ -133,9 +149,6 @@ export function builtOn(data) {
   const nodes = nodesOf(data.graph);
   const figures = Object.keys(nodes).filter(
     (id) => nodes[id].step === "figure",
-  );
-  const unpinned = new Set(
-    data.summary.issues.filter((i) => i.code === "C7").map((i) => i.node),
   );
   return Object.entries(nodes)
     .filter(([, node]) => node.step === "source")
@@ -151,7 +164,7 @@ export function builtOn(data) {
         kind: "sql",
         name: node.mart ?? null,
         period: node.period ?? null,
-        pinned: !unpinned.has(id),
+        pinned: isPinned(data, id),
         numbers,
       };
     });
@@ -264,7 +277,7 @@ const parentsOf = (graph, x) => {
 
 /**
  * The chain under `id` in beats, the clicked node's beat first.
- * @returns {{ n: number, ids: string[] }[]}
+ * @returns {{ word: string | null, ids: string[] }[]}
  */
 export function beats(graph, id) {
   const chain = new Set();
@@ -294,7 +307,154 @@ export function beats(graph, id) {
     ids.sort((a, b) => rank(a) - rank(b));
     if (ids.length) found.push(ids);
   }
-  return found.map((ids, k) => ({ n: found.length - k, ids }));
+  return found.map((ids, k) => ({ word: k ? "Built on" : null, ids }));
+}
+
+/** A string with something in it, else null. */
+const words = (x) => (typeof x === "string" && x.trim() ? x : null);
+
+/**
+ * What a step says about itself in words, and its SQL toggle: `show` is null
+ * when the step has no SQL to show. `label` is the word the panel prints.
+ * @returns {{ desc: string | null, note: string | null, show: { label: string, open: boolean } | null }}
+ */
+export function stepText(graph, id) {
+  const node = nodesOf(graph)[id];
+  if (!node) return { desc: null, note: null, show: null };
+  // An external source says what it is in `given`, an insight in `text`.
+  const described = node.step !== "insight" && node.kind !== "external";
+  const desc = described ? words(node.desc) : null;
+  const note = words(node.transform);
+  // A formula is its own calculation, so it has no SQL to toggle.
+  if (words(node.sql) === null) return { desc, note, show: null };
+  const label = node.step === "source" ? "query" : "SQL";
+  return { desc, note, show: { label, open: desc === null } };
+}
+
+/** A figure's display, else its value as a string, else null. */
+const valueOf = (node) =>
+  node.display ?? (node.value == null ? null : String(node.value));
+
+/** The word for each kind of step; "Missing" for an id not in the graph. */
+const kindOf = (node) =>
+  ({
+    source: "Source",
+    view: "View",
+    figure: "Figure",
+    insight: "Claim",
+  })[node?.step] ?? "Missing";
+
+/**
+ * A step's title line: its kind word, its title and the line under it, and
+ * the value at its right. The clicked step (`top`) drops the kind and value,
+ * which the panel's head shows.
+ * @returns {{ kind: string | null, title: string | null, sub: string | null, value: string | null }}
+ */
+export function stepHead(graph, id, { top = false } = {}) {
+  const node = nodesOf(graph)[id];
+  const { desc } = stepText(graph, id);
+  const external = node?.kind === "external";
+  if (top) {
+    // With no words of its own, point at the SQL, which is open.
+    const sql = node?.step === "source" ? "query" : "SQL";
+    const pointer = stepText(graph, id).show
+      ? `${node.step === "source" ? "Fetched" : "Worked out"} by the ${sql} below.`
+      : null;
+    const title = (external ? words(node.given) : desc) ?? pointer;
+    return { kind: null, title, sub: null, value: null };
+  }
+  const kind = kindOf(node);
+  const value = node?.step === "figure" ? valueOf(node) : null;
+  if (node?.step === "source") {
+    const sub = external ? words(node.given) : desc;
+    return { kind, title: words(title(graph, id)), sub, value };
+  }
+  return {
+    kind,
+    title: desc ?? (node ? words(title(graph, id)) : null),
+    sub: null,
+    value,
+  };
+}
+
+/**
+ * What is selected, for the status bar; null for an id not in the graph.
+ * @returns {{ id: string, kind: string, value: string | null, name: string | null } | null}
+ */
+export function selection(graph, id) {
+  const node = nodesOf(graph)[id];
+  if (!node) return null;
+  const figure = node.step === "figure";
+  return {
+    id,
+    kind: kindOf(node),
+    value: figure ? valueOf(node) : null,
+    name: figure ? (node.label ?? null) : title(graph, id),
+  };
+}
+
+/**
+ * What the report holds, as the status bar counts it. Numbers are the figures
+ * plus each bare number check found.
+ * @returns {{ numbers: number, claims: number, views: number, sources: number }}
+ */
+export function reportCounts(data) {
+  const steps = Object.values(nodesOf(data.graph)).map((n) => n.step);
+  const count = (step) => steps.filter((s) => s === step).length;
+  const bare = data.summary.issues.filter((i) => i.code === "C2").length;
+  return {
+    numbers: count("figure") + bare,
+    claims: count("insight"),
+    views: count("view"),
+    sources: count("source"),
+  };
+}
+
+/**
+ * The structured facts of a step, one shape per kind of step, read from its
+ * fields and never from its `desc`; null for an id not in the graph.
+ */
+export function stepFacts(data, id) {
+  const node = nodesOf(data.graph)[id];
+  if (!node) return null;
+  const list = (x) => (Array.isArray(x) ? x : []);
+  if (node.step === "view") {
+    return {
+      kind: "view",
+      from: list(node.from),
+      columns: list(node.columns),
+      visual: node.encoding?.visual ?? null,
+    };
+  }
+  if (node.step === "insight") {
+    return { kind: "claim", text: node.text ?? null, from: list(node.from) };
+  }
+  if (node.step === "figure") {
+    const shown = {
+      value: valueOf(node),
+      label: node.label ?? null,
+    };
+    if (words(node.sql) === null && words(node.expr) !== null) {
+      return { kind: "formula", ...shown, expr: node.expr };
+    }
+    return { kind: "pick", ...shown, from: list(node.from) };
+  }
+  if (node.kind === "external") {
+    return {
+      kind: "external",
+      ref: node.ref ?? null,
+      given: node.given ?? null,
+      columns: list(node.columns),
+    };
+  }
+  return {
+    kind: "sql",
+    mart: node.mart ?? null,
+    period: node.period ?? null,
+    pinned: isPinned(data, id),
+    how: node.how ?? null,
+    columns: list(node.columns),
+  };
 }
 
 const escapeHtml = (text) =>

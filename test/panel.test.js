@@ -67,7 +67,7 @@ describe("panel files", () => {
       assert.equal((await get(s, ref)).status, 200, ref);
     }
   });
-  it("loads all four font weights from the package", () => {
+  it("loads the mono and serif weights from the package", () => {
     const css = ["viewer.css", "themes.css"].map(read).join("\n");
     const fonts = [...css.matchAll(/url\(\s*["']?([^"')]*\.woff2)/g)].map(
       (m) => m[1],
@@ -77,6 +77,9 @@ describe("panel files", () => {
       "/assets/fonts/JetBrainsMono-Medium.woff2",
       "/assets/fonts/JetBrainsMono-Regular.woff2",
       "/assets/fonts/JetBrainsMono-SemiBold.woff2",
+      "/assets/fonts/SourceSerif4-Medium.woff2",
+      "/assets/fonts/SourceSerif4-Regular.woff2",
+      "/assets/fonts/SourceSerif4-SemiBold.woff2",
     ]);
   });
   it("sandboxes the report frame", () => {

@@ -1,6 +1,6 @@
 /**
  * The check rules that need more than one node or the page.
- * `validateGraph()` (`../graph/schema.js`) owns the per-node ones (S1–S8, C4,
+ * `validateGraph()` (`../graph/schema.js`) owns the per-node ones (S1–S9, C4,
  * C9). Pure: no file I/O.
  */
 

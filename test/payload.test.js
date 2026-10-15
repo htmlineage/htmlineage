@@ -25,10 +25,16 @@ const R0 =
 const G1 = {
   trailline: "1.0",
   nodes: {
-    q1: { step: "source", kind: "sql", sql: "select amount from sales" },
+    q1: {
+      step: "source",
+      kind: "sql",
+      desc: "Sales amounts",
+      sql: "select amount from sales",
+    },
     f1: {
       step: "figure",
       from: ["q1"],
+      desc: "The sales amount",
       sql: "select amount from q1",
       label: "Sales",
       value: 12,
