@@ -864,8 +864,10 @@ describe("title", () => {
   });
 });
 
+// A row's key: the path from below the clicked step to the row.
+const k = (...ids) => JSON.stringify(ids);
 // One row of the outline, as `outline` returns it.
-const row = (id, key = id, loop = false) => ({ id, key, loop });
+const row = (id, key = k(id), loop = false) => ({ id, key, loop });
 // Two figures built on each other.
 const CYCLE = {
   nodes: {
@@ -900,19 +902,19 @@ describe("outline", () => {
   it("keys a row by the branch below the clicked step", () => {
     assert.deepEqual(outline(G, ["f3", "f1", "v1"]), {
       label: "Rests on",
-      rows: [row("q1", "f1 v1 q1")],
+      rows: [row("q1", k("f1", "v1", "q1"))],
     });
   });
   it("marks an input that is the clicked step as a loop", () => {
     assert.deepEqual(outline(CYCLE, ["f3", "f4"]), {
       label: "Rests on",
-      rows: [row("f3", "f4 f3", true)],
+      rows: [row("f3", k("f4", "f3"), true)],
     });
   });
   it("marks an input already higher on the branch as a loop", () => {
     assert.deepEqual(outline(ABOVE, ["f5", "f3", "f4"]), {
       label: "Rests on",
-      rows: [row("f3", "f3 f4 f3", true)],
+      rows: [row("f3", k("f3", "f4", "f3"), true)],
     });
   });
   it("keeps an input missing from the graph as a row with nothing under it", () => {
@@ -925,6 +927,34 @@ describe("outline", () => {
   it("treats a from that is not a list as no inputs", () => {
     const graph = { nodes: { f1: { step: "figure", from: "q1" } } };
     assert.deepEqual(outline(graph, ["f1"]), { label: null, rows: [] });
+  });
+  it("gives an input named twice in from one row", () => {
+    const graph = {
+      nodes: {
+        v1: { step: "view", from: [] },
+        f1: { step: "figure", from: ["v1", "v1"] },
+      },
+    };
+    assert.deepEqual(outline(graph, ["f1"]), {
+      label: "Rests on",
+      rows: [row("v1")],
+    });
+    assert.deepEqual(outline(graph, ["v1"], { up }), {
+      label: "Used by",
+      rows: [row("f1")],
+    });
+  });
+  it("keys a path apart from an id with a space in it", () => {
+    const graph = {
+      nodes: {
+        a: { step: "view", from: ["b"] },
+        b: { step: "source" },
+        "a b": { step: "source" },
+        f1: { step: "figure", from: ["a", "a b"] },
+      },
+    };
+    const keys = outlineKeys(graph, "f1");
+    assert.equal(new Set(keys).size, keys.length);
   });
 });
 
@@ -947,11 +977,15 @@ describe("outline up", () => {
   it("keys and marks loops the same way going up", () => {
     assert.deepEqual(outline(G, ["v1", "f1"], { up }), {
       label: "Used by 3",
-      rows: [row("f3", "f1 f3"), row("f6", "f1 f6"), row("f7", "f1 f7")],
+      rows: [
+        row("f3", k("f1", "f3")),
+        row("f6", k("f1", "f6")),
+        row("f7", k("f1", "f7")),
+      ],
     });
     assert.deepEqual(outline(CYCLE, ["f3", "f4"], { up }), {
       label: "Used by",
-      rows: [row("f3", "f4 f3", true)],
+      rows: [row("f3", k("f4", "f3"), true)],
     });
   });
   it("does not count a from that is not a list as a use", () => {
@@ -974,29 +1008,34 @@ describe("outlineKeys", () => {
   });
   it("gives every row below, depth first in from order", () => {
     assert.deepEqual(outlineKeys(G, "f3"), [
-      "f2",
-      "f2 q2",
-      "f1",
-      "f1 v1",
-      "f1 v1 q1",
+      k("f2"),
+      k("f2", "q2"),
+      k("f1"),
+      k("f1", "v1"),
+      k("f1", "v1", "q1"),
     ]);
   });
   it("opens a step reached twice in both branches", () => {
     assert.deepEqual(outlineKeys(G, "f6"), [
-      "f1",
-      "f1 v1",
-      "f1 v1 q1",
-      "f5",
-      "f5 v1",
-      "f5 v1 q1",
+      k("f1"),
+      k("f1", "v1"),
+      k("f1", "v1", "q1"),
+      k("f5"),
+      k("f5", "v1"),
+      k("f5", "v1", "q1"),
     ]);
   });
   it("leaves out a loop row", () => {
-    assert.deepEqual(outlineKeys(CYCLE, "f3"), ["f4"]);
-    assert.deepEqual(outlineKeys(ABOVE, "f5"), ["f3", "f3 f4"]);
+    assert.deepEqual(outlineKeys(CYCLE, "f3"), [k("f4")]);
+    assert.deepEqual(outlineKeys(ABOVE, "f5"), [k("f3"), k("f3", "f4")]);
   });
   it("opens an input missing from the graph", () => {
-    assert.deepEqual(outlineKeys(G, "f7"), ["f1", "f1 v1", "f1 v1 q1", "f9"]);
+    assert.deepEqual(outlineKeys(G, "f7"), [
+      k("f1"),
+      k("f1", "v1"),
+      k("f1", "v1", "q1"),
+      k("f9"),
+    ]);
   });
 });
 
@@ -1619,12 +1658,12 @@ describe("lineage: fixtures", () => {
       rows: [row("f1"), row("f2")],
     });
     assert.deepEqual(outlineKeys(d.graph, "f3"), [
-      "f1",
-      "f1 v1",
-      "f1 v1 q1",
-      "f2",
-      "f2 v1",
-      "f2 v1 q1",
+      k("f1"),
+      k("f1", "v1"),
+      k("f1", "v1", "q1"),
+      k("f2"),
+      k("f2", "v1"),
+      k("f2", "v1", "q1"),
     ]);
   });
   it("gives every step of clean a desc, with its SQL closed", () => {
@@ -1948,7 +1987,7 @@ describe("lineage: fixtures", () => {
     });
     assert.deepEqual(outline(d.graph, ["f1", "i2"], { up }), {
       label: "Used by",
-      rows: [row("i3", "i2 i3")],
+      rows: [row("i3", k("i2", "i3"))],
     });
   });
   it("outlines messy's claim and opens f3 under it", () => {
@@ -1960,7 +1999,7 @@ describe("lineage: fixtures", () => {
     });
     assert.deepEqual(outline(d.graph, ["i1", "f3"]), {
       label: "Rests on 2",
-      rows: [row("f1", "f3 f1"), row("f2", "f3 f2")],
+      rows: [row("f1", k("f3", "f1")), row("f2", k("f3", "f2"))],
     });
     assert.deepEqual(inputRow(d, "f2", { onPage: boundOn(d) }), {
       id: "f2",
@@ -1979,13 +2018,13 @@ describe("lineage: fixtures", () => {
       label: "Rests on",
       rows: [row("f4")],
     });
-    const loop = { label: "Rests on", rows: [row("f3", "f4 f3", true)] };
+    const loop = { label: "Rests on", rows: [row("f3", k("f4", "f3"), true)] };
     assert.deepEqual(outline(d.graph, ["f3", "f4"]), loop);
     assert.deepEqual(outline(d.graph, ["f3", "f4"], { up }), {
       ...loop,
       label: "Used by",
     });
-    assert.deepEqual(outlineKeys(d.graph, "f3"), ["f4"]);
+    assert.deepEqual(outlineKeys(d.graph, "f3"), [k("f4")]);
     const f4 = inputRow(d, "f4", { onPage: boundOn(d) });
     assert.deepEqual(f4.ends, []);
     assert.equal(f4.note, null);

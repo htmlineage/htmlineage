@@ -269,11 +269,29 @@ function leadingComment(sql) {
   return match ? match[1].trim() : "";
 }
 
-/** A node's parents; a `from` that is not a list (check's S4) has none. */
+/**
+ * A node's parents, each once; a `from` that is not a list (check's S4) has
+ * none.
+ */
 const parentsOf = (graph, x) => {
   const from = graph.nodes[x]?.from;
-  return Array.isArray(from) ? from : [];
+  return Array.isArray(from) ? [...new Set(from)] : [];
 };
+
+// Each graph's users of every node, built the first time it is asked for.
+const USERS = new WeakMap();
+
+/** The nodes whose `from` names `x`, in graph order. */
+function usersOf(graph, x) {
+  if (!USERS.has(graph)) {
+    const users = new Map();
+    for (const id of Object.keys(graph.nodes))
+      for (const p of parentsOf(graph, id))
+        users.set(p, [...(users.get(p) ?? []), id]);
+    USERS.set(graph, users);
+  }
+  return USERS.get(graph).get(x) ?? [];
+}
 
 /**
  * The rows under one step of the outline. `branch` is the clicked node, then
@@ -282,12 +300,10 @@ const parentsOf = (graph, x) => {
  */
 export function outline(graph, branch, { up = false } = {}) {
   const last = branch.at(-1);
-  const next = up
-    ? Object.keys(graph.nodes).filter((x) => parentsOf(graph, x).includes(last))
-    : parentsOf(graph, last);
+  const next = up ? usersOf(graph, last) : parentsOf(graph, last);
   const rows = next.map((id) => ({
     id,
-    key: [...branch.slice(1), id].join(" "),
+    key: JSON.stringify([...branch.slice(1), id]),
     loop: branch.includes(id),
   }));
   const word = up ? "Used by" : "Rests on";
@@ -299,13 +315,20 @@ export function outline(graph, branch, { up = false } = {}) {
   };
 }
 
+// Each graph's "Open all" keys by clicked step: one key per path below it, so
+// they are walked once, not on every render.
+const KEYS = new WeakMap();
+
 /** The keys "Open all" opens: every row under `id`, going down. */
 export function outlineKeys(graph, id) {
+  if (!KEYS.has(graph)) KEYS.set(graph, new Map());
+  const keys = KEYS.get(graph);
   const walk = (branch) =>
     outline(graph, branch)
       .rows.filter((r) => !r.loop)
       .flatMap((r) => [r.key, ...walk([...branch, r.id])]);
-  return walk([id]);
+  if (!keys.has(id)) keys.set(id, walk([id]));
+  return keys.get(id);
 }
 
 /**
@@ -325,8 +348,12 @@ export function ownCard(graph, id) {
  */
 export function inputRow(data, id, { onPage = [] } = {}) {
   const { kind, title, value } = stepHead(data.graph, id);
-  const ends = builtFrom(data, id).map((row) => row.name ?? row.node);
-  const note = !nodesOf(data.graph)[id]
+  const nodes = nodesOf(data.graph);
+  const under = new Set(underneath(nodes, id).ids);
+  const ends = Object.keys(nodes)
+    .filter((x) => under.has(x) && nodes[x].step === "source")
+    .map((x) => (nodes[x].kind === "sql" ? nodes[x].mart : nodes[x].ref) ?? x);
+  const note = !nodes[id]
     ? "not in the graph"
     : !ends.length && !parentsOf(data.graph, id).length
       ? "nothing behind it"

@@ -471,9 +471,13 @@ function renderSelected(id) {
   const openAll = keys.length
     ? `<button class="link" type="button" data-openall="${allOpen ? "" : "1"}">${allOpen ? "Close all" : "Open all"}</button>`
     : "";
+  // a claim with no card of its own still shows its transform note
+  const { note } = stepText(S.fx.graph, id);
   const own = ownCard(S.fx.graph, id)
     ? `<div class="ol-own">${stepCard(id, { isTop: true })}</div>`
-    : "";
+    : note
+      ? `<div class="ol-own"><div class="card"><p class="reads"><b>Note</b> ${esc(note)}</p></div></div>`
+      : "";
   const score = `<div class="score-h"><h2 class="h">How it was computed</h2>${openAll}</div>
     <div class="ol-sec">${own}${rowsHtml([id], false)}</div>`;
 
@@ -492,12 +496,18 @@ function nav() {
   }</div>`;
 }
 
+// Redrawing in place keeps keyboard focus on the button that was pressed. A
+// toggle only adds or removes what comes after it, so that button keeps its
+// place among the panel's buttons.
 function render({ keepScroll = false } = {}) {
   const pane = $("#lineage");
   const top = pane.scrollTop;
+  const buttons = () => [...pane.querySelectorAll("button")];
+  const focused = keepScroll ? buttons().indexOf(document.activeElement) : -1;
   pane.innerHTML = nav() + (S.sel ? renderSelected(S.sel) : renderSummary());
   paintStatus();
   pane.scrollTop = keepScroll ? top : 0;
+  if (focused >= 0) buttons()[focused]?.focus({ preventScroll: true });
   paintPage();
   writeHash();
 }

@@ -852,6 +852,9 @@ button.id:hover {
   font: 400 14px/1.6 var(--f-serif);
   text-wrap: pretty;
 }
+.card > .reads:first-child {
+  margin-top: 0;
+}
 .reads b {
   color: var(--ink);
   font-weight: 600;
@@ -1352,9 +1355,6 @@ button.id:hover {
   border: 1px solid var(--rule);
   border-radius: var(--r-card);
   background: var(--paper);
-}
-.ol-item.is-open + .ol-item {
-  border-top: 0;
 }
 .ol-item.is-open > .ol-row {
   border-radius: calc(var(--r-card) - 1px) calc(var(--r-card) - 1px) 0 0;
