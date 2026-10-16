@@ -1,11 +1,11 @@
-# Trailline
+# htmlineage
 
 **A provenance layer for AI-generated reports.** Every number, chart, and claim traces back to the query that produced it.
 
-AI writes analytics reports faster than data teams can vet them. Trailline records where each figure came from — `source → view → figure → insight` — so a reviewer can see the lineage behind any claim before it reaches a CXO deck.
+AI writes analytics reports faster than data teams can vet them. htmlineage records where each figure came from — `source → view → figure → insight` — so a reviewer can see the lineage behind any claim before it reaches a CXO deck.
 
-- **Visibility, not verification.** Trailline shows the lineage; it doesn't assert the numbers are right.
-- **Zero builder friction.** Reports stay plain `.html`. Lineage rides along in an inert `<script type="application/trailline+json">` block and `data-trailline` attributes — invisible to the reader.
+- **Visibility, not verification.** htmlineage shows the lineage; it doesn't assert the numbers are right.
+- **Zero builder friction.** Reports stay plain `.html`. Lineage rides along in an inert `<script type="application/lineage+json">` block and `data-lineage` attributes — invisible to the reader.
 - **SQL-first evidence.** Compose an entire report back into one runnable SQL script for review.
 - **Pinned time.** Queries use absolute date ranges, never `now()`, so a report reproduces exactly.
 
@@ -18,23 +18,23 @@ AI writes analytics reports faster than data teams can vet them. Trailline recor
 Requires Node 18 or later.
 
 ```bash
-npx trailline@next --help
+npx htmlineage@next --help
 ```
 
 ## Usage
 
 ```bash
-npx trailline@next check report.html       # validate the lineage and embed it into the report
-npx trailline@next sql report.html         # compose the whole report into one SQL script
-npx trailline@next sql report.html --id f3 # the SQL behind one number
-npx trailline@next view report.html        # open the report beside its lineage
+npx htmlineage@next check report.html       # validate the lineage and embed it into the report
+npx htmlineage@next sql report.html         # compose the whole report into one SQL script
+npx htmlineage@next sql report.html --id f3 # the SQL behind one number
+npx htmlineage@next view report.html        # open the report beside its lineage
 ```
 
-Run `trailline <command> --help` for the options of each command.
+Run `htmlineage <command> --help` for the options of each command.
 
 ### `check`
 
-Reads the lineage graph from `.trailline/<report>.json` beside the report, checks it against the report's `data-trailline` bindings, embeds it into the HTML, and prints a summary. Exits `0` when the report passes (warnings still pass) and `1` when it does not. Use `--no-embed` to leave the file untouched and `--json` for machine-readable output.
+Reads the lineage graph from `.lineage/<report>.json` beside the report, checks it against the report's `data-lineage` bindings, embeds it into the HTML, and prints a summary. Exits `0` when the report passes (warnings still pass) and `1` when it does not. Use `--no-embed` to leave the file untouched and `--json` for machine-readable output.
 
 ### `sql`
 
@@ -51,7 +51,7 @@ A report's graph is a JSON object with a `nodes` map. Each node is one of four s
 | Step        | Id  | What it is                                                              |
 | ----------- | --- | ----------------------------------------------------------------------- |
 | **source**  | `q` | One wide query per dataset, with a pinned date range                    |
-|             | `x` | An external source Trailline cannot see inside (a CSV, a document)      |
+|             | `x` | An external source htmlineage cannot see inside (a CSV, a document)     |
 | **view**    | `v` | A `select` over sources or views, shown as a table or chart             |
 | **figure**  | `f` | A single value picked from a view, or a SQL expression over figures     |
 | **insight** | `i` | A claim resting on views, figures or insights, or flagged as ungrounded |
@@ -59,7 +59,7 @@ A report's graph is a JSON object with a `nodes` map. Each node is one of four s
 Elements on the page point at nodes:
 
 ```html
-<div class="kpi-value" data-trailline="f1">46.6%</div>
+<div class="kpi-value" data-lineage="f1">46.6%</div>
 ```
 
 ## License

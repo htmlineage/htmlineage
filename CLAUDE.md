@@ -1,4 +1,4 @@
-# Trailline
+# htmlineage
 
 Provenance/lineage layer for AI-generated HTML reports. Every number, chart, and claim traces back to the query that produced it.
 
@@ -14,10 +14,10 @@ Provenance/lineage layer for AI-generated HTML reports. Every number, chart, and
 **Three deliverables (MVP):**
 
 1. Skill — LLM instructions so lineage falls out of report building
-2. CLI — `npx trailline` with commands: `check`, `view`, `sql`
+2. CLI — `npx htmlineage` with commands: `check`, `view`, `sql`
 3. Viewer — local two-pane page (report + lineage), served by CLI
 
-**File format:** Plain `.html` with an inert `<script type="application/trailline+json">` block and `data-trailline` attributes on bound elements.
+**File format:** Plain `.html` with an inert `<script type="application/lineage+json">` block and `data-lineage` attributes on bound elements.
 
 ## Key Design Principles
 

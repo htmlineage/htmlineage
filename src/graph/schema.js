@@ -5,7 +5,7 @@
  * rather than a JSON Schema file, so it needs no validator dependency and its
  * messages can talk like a person. It only looks at nodes one by one. Rules
  * that need several nodes (chain shape, cycles) or the HTML (bindings, bare
- * numbers) live with `trailline check`.
+ * numbers) live with `htmlineage check`.
  *
  * The split in severity follows one idea: an error means the graph cannot be
  * read or composed as written; a warning means it can, but something a
@@ -51,7 +51,7 @@ const ISO_TIMESTAMP =
   /^(\d{4}-\d{2}-\d{2})T(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|[+-](?:[01]\d|2[0-3]):[0-5]\d)$/;
 
 const HEADER_FIELDS = new Set([
-  "trailline",
+  "lineage",
   "report_id",
   "built_at",
   "builder_tool",
@@ -149,21 +149,21 @@ export function validateGraph(graph) {
 }
 
 function checkHeader(graph, report) {
-  const version = graph.trailline;
+  const version = graph.lineage;
   if (version === undefined) {
-    report("S1", null, "trailline", "missing `trailline` format version");
+    report("S1", null, "lineage", "missing `lineage` format version");
   } else if (!isString(version) || !/^\d+\.\d+$/.test(version)) {
     report(
       "S1",
       null,
-      "trailline",
-      `\`trailline\` must be a version string like "1.0", got ${JSON.stringify(version)}`,
+      "lineage",
+      `\`lineage\` must be a version string like "1.0", got ${JSON.stringify(version)}`,
     );
   } else if (Number(version.split(".")[0]) !== FORMAT_MAJOR) {
     report(
       "S1",
       null,
-      "trailline",
+      "lineage",
       `format version ${version} is not supported; this build reads ${FORMAT_MAJOR}.x`,
     );
   }

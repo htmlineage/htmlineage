@@ -14,14 +14,14 @@ import {
 } from "./helpers.js";
 
 const REFUSED = (name) =>
-  `trailline: ${name} does not pass \`trailline check\`, so no script was composed`;
+  `htmlineage: ${name} does not pass \`htmlineage check\`, so no script was composed`;
 const NO_NODE =
-  "trailline: no node `f9` in r.html\nTry `trailline sql --help`.";
+  "htmlineage: no node `f9` in r.html\nTry `htmlineage sql --help`.";
 const R0 =
   "<html><head><title>r</title></head><body><p>Hello.</p></body></html>";
 
 const G1 = {
-  trailline: "1.0",
+  lineage: "1.0",
   nodes: {
     q1: { step: "source", kind: "sql", sql: "select amount from sales" },
     f1: {
@@ -35,18 +35,18 @@ const G1 = {
   },
 };
 const R_F1 =
-  '<html><head></head><body><p>Sales were <span data-trailline="f1">12</span>.</p></body></html>';
+  '<html><head></head><body><p>Sales were <span data-lineage="f1">12</span>.</p></body></html>';
 const ONE =
   "-- r.html\nwith\nq1 as (\n    select amount from sales\n),\nf1 (value) as (\n    select amount from q1\n)\nselect 'f1' as figure, 'Sales' as label, cast((select value from f1) as varchar) as value";
 
-/** Write <dir>/r.html, and <dir>/.trailline/r.json when a graph is given. */
+/** Write <dir>/r.html, and <dir>/.lineage/r.json when a graph is given. */
 function report(t, html, graph) {
   const dir = tempDir(t);
   const path = join(dir, "r.html");
   writeFileSync(path, html);
   if (graph) {
-    mkdirSync(join(dir, ".trailline"));
-    writeFileSync(join(dir, ".trailline", "r.json"), JSON.stringify(graph));
+    mkdirSync(join(dir, ".lineage"));
+    writeFileSync(join(dir, ".lineage", "r.json"), JSON.stringify(graph));
   }
   return { dir, path };
 }
@@ -58,7 +58,7 @@ describe("sql: invocation", () => {
     assert.equal(out, "");
     assert.equal(
       err,
-      "trailline: missing the report to compose\nTry `trailline sql --help`.",
+      "htmlineage: missing the report to compose\nTry `htmlineage sql --help`.",
     );
   });
 
@@ -74,14 +74,14 @@ describe("sql: invocation", () => {
     assert.equal(out, "");
     assert.equal(
       err,
-      "trailline: expected one report, got 2\nTry `trailline sql --help`.",
+      "htmlineage: expected one report, got 2\nTry `htmlineage sql --help`.",
     );
   });
 });
 
 describe("sql: reading", () => {
   it("reads the --graph file instead of the sidecar", async (t) => {
-    const { dir, path } = report(t, R_F1, { trailline: "1.0", nodes: {} });
+    const { dir, path } = report(t, R_F1, { lineage: "1.0", nodes: {} });
     const other = join(dir, "other.json");
     writeFileSync(other, JSON.stringify(G1));
     const { code, out } = await runCli(["sql", path, "--graph", other]);
@@ -96,7 +96,7 @@ describe("sql: reading", () => {
     assert.equal(out, "");
     assert.equal(
       err,
-      `trailline: no lineage graph found for ${path}. Looked for ${join(dir, ".trailline", "r.json")} and a <script type="application/trailline+json"> block in the report.`,
+      `htmlineage: no lineage graph found for ${path}. Looked for ${join(dir, ".lineage", "r.json")} and a <script type="application/lineage+json"> block in the report.`,
     );
   });
 });
@@ -134,10 +134,7 @@ describe("sql: schema errors", () => {
       expr: 5,
       label: "Broken",
     };
-    const html = R_F1.replace(
-      "</p>",
-      ' <span data-trailline="f2">1</span></p>',
-    );
+    const html = R_F1.replace("</p>", ' <span data-lineage="f2">1</span></p>');
     const { path } = report(t, html, graph);
     const { code, out, err } = await runCli(["sql", path]);
     assert.equal(code, 1);
@@ -196,7 +193,7 @@ describe("sql: one node", () => {
   });
 
   it("exits 2 on an id when the graph has no nodes", async (t) => {
-    const { path } = report(t, R_F1, { trailline: "1.0" });
+    const { path } = report(t, R_F1, { lineage: "1.0" });
     const { code, out, err } = await runCli(["sql", path, "--id", "q1"]);
     assert.equal(code, 2);
     assert.equal(out, "");
@@ -234,7 +231,7 @@ describe("sql: one node", () => {
     assert.equal(out, "");
     assert.equal(
       err,
-      "trailline: expected one --id, got 2\nTry `trailline sql --help`.",
+      "htmlineage: expected one --id, got 2\nTry `htmlineage sql --help`.",
     );
   });
 

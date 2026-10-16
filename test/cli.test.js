@@ -18,7 +18,7 @@ describe("command registry", () => {
     it(`${command.name} declares a complete surface`, () => {
       assert.equal(typeof command.summary, "string");
       assert.ok(command.summary.length > 0);
-      assert.ok(command.usage.startsWith(`trailline ${command.name}`));
+      assert.ok(command.usage.startsWith(`htmlineage ${command.name}`));
       assert.equal(typeof command.options, "object");
       assert.equal(typeof command.run, "function");
     });
@@ -48,7 +48,7 @@ describe("top level", () => {
   it("routes --help <command> to that command's usage", async () => {
     const { code, out } = await runCli(["--help", "sql"]);
     assert.equal(code, EXIT_OK);
-    assert.ok(out.startsWith("trailline sql"));
+    assert.ok(out.startsWith("htmlineage sql"));
   });
 
   it("rejects an unknown command with exit 2", async () => {
@@ -69,19 +69,19 @@ describe("per command parsing", () => {
     it(`${command.name} --help prints its usage`, async () => {
       const { code, out } = await runCli([command.name, "--help"]);
       assert.equal(code, EXIT_OK);
-      assert.ok(out.startsWith(`trailline ${command.name}`));
+      assert.ok(out.startsWith(`htmlineage ${command.name}`));
     });
 
     it(`${command.name} -h prints its usage`, async () => {
       const { code, out } = await runCli([command.name, "-h"]);
       assert.equal(code, EXIT_OK);
-      assert.ok(out.startsWith(`trailline ${command.name}`));
+      assert.ok(out.startsWith(`htmlineage ${command.name}`));
     });
 
     it(`${command.name} rejects an unknown option with exit 2`, async () => {
       const { code, err } = await runCli([command.name, "--definitely-not"]);
       assert.equal(code, EXIT_USAGE);
-      assert.match(err, new RegExp(`trailline ${command.name} --help`));
+      assert.match(err, new RegExp(`htmlineage ${command.name} --help`));
     });
 
     if (["check", "sql", "view"].includes(command.name)) continue;

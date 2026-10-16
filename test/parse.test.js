@@ -3,7 +3,7 @@ import { copyFileSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, it } from "node:test";
 
-import { TraillineError } from "../src/errors.js";
+import { HtmlineageError } from "../src/errors.js";
 import {
   findEmbeddedGraph,
   readGraph,
@@ -14,17 +14,17 @@ import { FIXTURE_NAMES, loadFixture, tempDir } from "./helpers.js";
 
 const page = (body) =>
   `<!doctype html>\n<html>\n<body>\n${body}\n</body>\n</html>\n`;
-const block = (json, attrs = 'type="application/trailline+json"') =>
-  `<script ${attrs} id="trailline-graph">${json}</script>`;
+const block = (json, attrs = 'type="application/lineage+json"') =>
+  `<script ${attrs} id="lineage-graph">${json}</script>`;
 
 const failsWith = (pattern) => (error) =>
-  error instanceof TraillineError && pattern.test(error.message);
+  error instanceof HtmlineageError && pattern.test(error.message);
 
 describe("sidecarPath", () => {
-  it("puts the graph in .trailline beside the report, named by its stem", () => {
+  it("puts the graph in .lineage beside the report, named by its stem", () => {
     assert.equal(
       sidecarPath(join("reports", "august-retention.html")),
-      join("reports", ".trailline", "august-retention.json"),
+      join("reports", ".lineage", "august-retention.json"),
     );
   });
 
@@ -50,10 +50,10 @@ describe("findEmbeddedGraph", () => {
   });
 
   for (const attrs of [
-    "type='application/trailline+json'",
-    "type=application/trailline+json",
-    'TYPE="Application/Trailline+JSON"',
-    'id="trailline-graph" type="application/trailline+json"',
+    "type='application/lineage+json'",
+    "type=application/lineage+json",
+    'TYPE="Application/Lineage+JSON"',
+    'id="lineage-graph" type="application/lineage+json"',
   ]) {
     it(`finds the block with ${attrs}`, () => {
       assert.equal(findEmbeddedGraph(page(block("{}", attrs))).content, "{}");
@@ -62,7 +62,7 @@ describe("findEmbeddedGraph", () => {
 
   it("ignores lookalike attributes and ordinary scripts", () => {
     const html = page(
-      '<script data-type="application/trailline+json">{}</script>' +
+      '<script data-type="application/lineage+json">{}</script>' +
         '<script type="application/json">{}</script>',
     );
     assert.equal(findEmbeddedGraph(html), null);
@@ -82,7 +82,7 @@ describe("findEmbeddedGraph", () => {
 
   it("refuses an unclosed block", () => {
     assert.throws(
-      () => findEmbeddedGraph('<script type="application/trailline+json">{}'),
+      () => findEmbeddedGraph('<script type="application/lineage+json">{}'),
       failsWith(/never closed/),
     );
   });
@@ -90,7 +90,7 @@ describe("findEmbeddedGraph", () => {
 
 describe("serializeForEmbed", () => {
   const graph = {
-    trailline: "1.0",
+    lineage: "1.0",
     nodes: { q1: { sql: "select '</script><!--' as trap where a < b" } },
   };
 
@@ -108,7 +108,7 @@ describe("readGraph", () => {
       const { reportPath, expected } = loadFixture(name);
       const { graph, origin } = readGraph({ reportPath });
       assert.equal(origin, expected.origin);
-      assert.equal(graph.trailline, "1.0");
+      assert.equal(graph.lineage, "1.0");
       assert.ok(Object.keys(graph.nodes).length > 0);
     });
   }
@@ -117,8 +117,8 @@ describe("readGraph", () => {
     const dir = tempDir(t);
     const report = join(dir, "august-retention.html");
     copyFileSync(loadFixture("clean").reportPath, report);
-    mkdirSync(join(dir, ".trailline"));
-    writeFileSync(sidecarPath(report), '{"trailline":"1.0","nodes":{}}');
+    mkdirSync(join(dir, ".lineage"));
+    writeFileSync(sidecarPath(report), '{"lineage":"1.0","nodes":{}}');
 
     const { graph, origin, path } = readGraph({ reportPath: report });
     assert.equal(origin, "sidecar");
@@ -133,7 +133,7 @@ describe("readGraph", () => {
 
     const report = join(dir, "august-retention.html");
     writeFileSync(report, page("<p>no block</p>"));
-    mkdirSync(join(dir, ".trailline"));
+    mkdirSync(join(dir, ".lineage"));
     writeFileSync(sidecarPath(report), JSON.stringify(embedded, null, 2));
     assert.deepEqual(readGraph({ reportPath: report }).graph, embedded);
   });
@@ -141,7 +141,7 @@ describe("readGraph", () => {
   it("reads exactly the file named by graphPath", (t) => {
     const dir = tempDir(t);
     const graphPath = join(dir, "elsewhere.json");
-    writeFileSync(graphPath, '{"trailline":"1.0","nodes":{}}');
+    writeFileSync(graphPath, '{"lineage":"1.0","nodes":{}}');
     const { origin, path } = readGraph({
       reportPath: loadFixture("messy").reportPath,
       graphPath,
@@ -171,10 +171,10 @@ describe("readGraph", () => {
   it("locates a JSON error in a sidecar by line and column", (t) => {
     const dir = tempDir(t);
     const report = join(dir, "r.html");
-    mkdirSync(join(dir, ".trailline"));
+    mkdirSync(join(dir, ".lineage"));
     writeFileSync(
       sidecarPath(report),
-      '{\n  "trailline": "1.0",\n  "nodes": {,}\n}',
+      '{\n  "lineage": "1.0",\n  "nodes": {,}\n}',
     );
     assert.throws(
       () => readGraph({ reportPath: report }),

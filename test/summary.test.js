@@ -14,7 +14,7 @@ const bound = (...ids) => ({
   bindings: ids.map((id, offset) => ({ id, text: "", offset })),
   prose: [],
 });
-const G = (nodes) => ({ trailline: "1.0", nodes });
+const G = (nodes) => ({ lineage: "1.0", nodes });
 const src = { step: "source", kind: "sql" };
 const ext = { step: "source", kind: "external", ref: "targets.csv" };
 const view = { step: "view", from: ["q1"] };
@@ -322,12 +322,12 @@ describe("formatSummary", () => {
       "C1",
       "error",
       "f9",
-      'data-trailline="f9" resolves to no node',
+      'data-lineage="f9" resolves to no node',
     );
     const lines = formatSummary(sum(G({}), EMPTY_PAGE, [error])).split("\n");
     assert.ok(
       lines.includes(
-        '    f9   C1 error     data-trailline="f9" resolves to no node',
+        '    f9   C1 error     data-lineage="f9" resolves to no node',
       ),
     );
   });
@@ -373,12 +373,12 @@ describe("formatSummary", () => {
       "S1",
       "error",
       null,
-      "missing `trailline` format version",
+      "missing `lineage` format version",
     );
     const lines = formatSummary(sum(G({}), EMPTY_PAGE, [missing])).split("\n");
     assert.ok(
       lines.includes(
-        "    graph   S1 error     missing `trailline` format version",
+        "    graph   S1 error     missing `lineage` format version",
       ),
     );
   });
@@ -522,7 +522,7 @@ describe("fixtures", () => {
         "    i3         S4 error     insight is missing `text`",
         "    Top-Plan   S2 error     `Top-Plan` is not a valid id: use lowercase letters, digits and _, starting with a letter",
         '    m1         S3 error     unknown step "metric"; expected one of source, view, figure, insight',
-        '    f9         C1 error     data-trailline="f9" resolves to no node',
+        '    f9         C1 error     data-lineage="f9" resolves to no node',
         "    v2         C1 error     view is not bound to any element on the page",
         "    i2         C5 error     an insight rests on views, figures and insights only",
         "    f3         C6 error     cycle f3 -> f4 -> f3",

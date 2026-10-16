@@ -3,7 +3,7 @@
 // talk only through postMessage. A classic script: it is inlined in a tag, and
 // the frame's origin is "null", so it cannot import or fetch anything.
 (function () {
-  var BOUND = "[data-trailline]";
+  var BOUND = "[data-lineage]";
   var CSS_TEXT =
     BOUND +
     " { cursor: pointer; transition: outline-color .15s, background-color .15s; outline: 1.5px solid transparent; outline-offset: 2px; border-radius: 2px; }" +
@@ -29,7 +29,7 @@
 
   function places(id) {
     return bound().filter(function (el) {
-      return el.getAttribute("data-trailline") === id;
+      return el.getAttribute("data-lineage") === id;
     });
   }
 
@@ -49,7 +49,7 @@
     if (
       !current ||
       !current.isConnected ||
-      current.getAttribute("data-trailline") !== id
+      current.getAttribute("data-lineage") !== id
     ) {
       current = places(id)[0] || null;
     }
@@ -58,7 +58,7 @@
 
   function open(el) {
     current = el;
-    post({ trailline: "select", id: el.getAttribute("data-trailline") });
+    post({ lineage: "select", id: el.getAttribute("data-lineage") });
   }
 
   function start() {
@@ -71,10 +71,10 @@
     var counts = {};
     bound().forEach(function (el) {
       if (!el.hasAttribute("tabindex")) el.setAttribute("tabindex", "0");
-      var id = el.getAttribute("data-trailline");
+      var id = el.getAttribute("data-lineage");
       counts[id] = (counts[id] || 0) + 1;
     });
-    post({ trailline: "ready", counts: counts });
+    post({ lineage: "ready", counts: counts });
   }
 
   document.addEventListener("click", function (e) {
@@ -85,7 +85,7 @@
   });
 
   document.addEventListener("keydown", function (e) {
-    if (e.key === "Escape") return post({ trailline: "back" });
+    if (e.key === "Escape") return post({ lineage: "back" });
     if (e.key !== "Enter" && e.key !== " ") return;
     var el = e.target.closest && e.target.closest(BOUND);
     if (!el || el !== e.target) return;
@@ -109,17 +109,17 @@
     if (e.source !== parent) return;
     var m = e.data;
     if (!m || typeof m !== "object") return;
-    if (m.trailline === "mark") {
+    if (m.lineage === "mark") {
       marked = typeof m.id === "string" ? m.id : null;
       paint();
-    } else if (m.trailline === "peek") {
+    } else if (m.lineage === "peek") {
       clear("tl-peek");
       if (typeof m.id === "string") {
         places(m.id).forEach(function (el) {
           el.classList.add("tl-peek");
         });
       }
-    } else if (m.trailline === "scroll") {
+    } else if (m.lineage === "scroll") {
       var el = typeof m.id === "string" && places(m.id)[m.index];
       if (!el) return;
       current = el;

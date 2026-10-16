@@ -77,14 +77,14 @@ describe("C1", () => {
         severity: "error",
         node: "zz",
         field: null,
-        message: 'data-trailline="zz" resolves to no node',
+        message: 'data-lineage="zz" resolves to no node',
       },
       {
         code: "C1",
         severity: "error",
         node: "",
         field: null,
-        message: 'data-trailline="" resolves to no node',
+        message: 'data-lineage="" resolves to no node',
       },
     ]);
   });

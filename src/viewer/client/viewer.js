@@ -238,7 +238,7 @@ function stepCard(id, { isTop = false, bare = false } = {}) {
       if (f.how) meta.push(esc(f.how));
     } else if (f.kind === "external") {
       meta.push(
-        `<span class="warn">external ${esc(n.type || "file")} · Trailline can't see inside it</span>`,
+        `<span class="warn">external ${esc(n.type || "file")} · htmlineage can't see inside it</span>`,
       );
       if (f.columns.length) meta.push(colsMeta(f.columns));
     } else if (f.kind === "view") {
@@ -517,7 +517,7 @@ function render({ keepScroll = false } = {}) {
 // server adds to it talk only through messages.
 const tell = (message) =>
   $("#report").contentWindow?.postMessage(
-    { trailline: message.type, ...message },
+    { lineage: message.type, ...message },
     "*",
   );
 
@@ -724,7 +724,7 @@ async function boot() {
   }
   load(await res.json());
   $("#reportName").textContent = S.fx.report;
-  document.title = `${S.fx.report} · Trailline`;
+  document.title = `${S.fx.report} · htmlineage`;
   const all = reportSql(S.fx);
   const btn = $("#copyReport");
   btn.disabled = all.sql === null;

@@ -71,12 +71,10 @@ describe("readPage: bindings", () => {
     for (const binding of page.bindings) {
       assert.equal(html.startsWith("<", binding.offset), true, binding.id);
       const tag = html.slice(binding.offset, html.indexOf(">", binding.offset));
-      assert.equal(tag.includes(`data-trailline="${binding.id}"`), true);
+      assert.equal(tag.includes(`data-lineage="${binding.id}"`), true);
     }
     assert.equal(
-      html
-        .slice(page.bindings[0].offset)
-        .startsWith('<h1 data-trailline="i1">'),
+      html.slice(page.bindings[0].offset).startsWith('<h1 data-lineage="i1">'),
       true,
     );
   });
@@ -92,30 +90,30 @@ describe("readPage: bindings", () => {
   });
 
   it("collapses whitespace and decodes entities", () => {
-    const html = `<p data-trailline="i1">A&amp;B  rose\n to <span data-trailline="f1">&#36;5</span></p>`;
+    const html = `<p data-lineage="i1">A&amp;B  rose\n to <span data-lineage="f1">&#36;5</span></p>`;
     const page = readPage(html);
     assert.deepEqual(page.bindings, [
       { id: "i1", text: "A&B rose to $5", offset: 0 },
-      { id: "f1", text: "$5", offset: 41 },
+      { id: "f1", text: "$5", offset: 39 },
     ]);
   });
 
   it("keeps empty and valueless ids", () => {
-    const html = `<p data-trailline="">a</p><p data-trailline>b</p>`;
+    const html = `<p data-lineage="">a</p><p data-lineage>b</p>`;
     const page = readPage(html);
     assert.deepEqual(page.bindings, [
       { id: "", text: "a", offset: 0 },
-      { id: "", text: "b", offset: 26 },
+      { id: "", text: "b", offset: 24 },
     ]);
   });
 
   it("finds bindings inside pre", () => {
-    const html = `<pre>x <span data-trailline="f1">4%</span></pre>`;
+    const html = `<pre>x <span data-lineage="f1">4%</span></pre>`;
     const page = readPage(html);
     assert.deepEqual(page.bindings, [{ id: "f1", text: "4%", offset: 7 }]);
     assert.deepEqual(page.prose, [
       { text: "x", node: null, offset: 5 },
-      { text: "4%", node: "f1", offset: 33 },
+      { text: "4%", node: "f1", offset: 31 },
     ]);
   });
 
@@ -127,14 +125,14 @@ describe("readPage: bindings", () => {
 
 describe("readPage: prose", () => {
   it("tags each text run with its nearest bound ancestor", () => {
-    const html = `<p data-trailline="i1">up <b>5%</b> on <span data-trailline="f1">7%</span></p><p>9%</p>`;
+    const html = `<p data-lineage="i1">up <b>5%</b> on <span data-lineage="f1">7%</span></p><p>9%</p>`;
     const page = readPage(html);
     assert.deepEqual(page.prose, [
-      { text: "up", node: "i1", offset: 23 },
-      { text: "5%", node: "i1", offset: 29 },
-      { text: "on", node: "i1", offset: 35 },
-      { text: "7%", node: "f1", offset: 65 },
-      { text: "9%", node: null, offset: 81 },
+      { text: "up", node: "i1", offset: 21 },
+      { text: "5%", node: "i1", offset: 27 },
+      { text: "on", node: "i1", offset: 33 },
+      { text: "7%", node: "f1", offset: 61 },
+      { text: "9%", node: null, offset: 77 },
     ]);
   });
 
@@ -145,7 +143,7 @@ describe("readPage: prose", () => {
   });
 
   it("leaves out hidden tags regardless of case", () => {
-    const html = `<html><Head><Title>Q3 2026 at 12%</Title></Head><body><p>ok</p><SCRIPT type="application/trailline+json">{"nodes":{"f1":{"value":0.466,"display":"46.6%"}}}</SCRIPT></body></html>`;
+    const html = `<html><Head><Title>Q3 2026 at 12%</Title></Head><body><p>ok</p><SCRIPT type="application/lineage+json">{"nodes":{"f1":{"value":0.466,"display":"46.6%"}}}</SCRIPT></body></html>`;
     const page = readPage(html);
     assert.deepEqual(page.prose, [
       { text: "ok", node: null, offset: html.indexOf("ok") },
@@ -167,9 +165,9 @@ describe("readPage: prose", () => {
   });
 
   it("skips the whole subtree of a skipped binding", () => {
-    const html = `<div data-trailline="v1"><p data-trailline="i9">5%</p></div><p data-trailline="i1">6%</p>`;
+    const html = `<div data-lineage="v1"><p data-lineage="i9">5%</p></div><p data-lineage="i1">6%</p>`;
     const page = readPage(html, { skip: (id) => id === "v1" });
-    assert.deepEqual(page.prose, [{ text: "6%", node: "i1", offset: 83 }]);
+    assert.deepEqual(page.prose, [{ text: "6%", node: "i1", offset: 77 }]);
     assert.deepEqual(
       page.bindings.map((b) => b.id),
       ["v1", "i9", "i1"],

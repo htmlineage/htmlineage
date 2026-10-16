@@ -21,18 +21,18 @@ export class UsageError extends Error {
 }
 
 /** The command ran and reported a real failure. */
-export class TraillineError extends Error {
+export class HtmlineageError extends Error {
   constructor(message) {
     super(message);
-    this.name = "TraillineError";
+    this.name = "HtmlineageError";
     this.exitCode = EXIT_FAILED;
   }
 }
 
 /** A command whose surface is fixed but whose body is not built yet. */
-export class NotImplementedError extends TraillineError {
+export class NotImplementedError extends HtmlineageError {
   constructor(command) {
-    super(`\`trailline ${command}\` is not implemented yet.`);
+    super(`\`htmlineage ${command}\` is not implemented yet.`);
     this.name = "NotImplementedError";
     this.command = command;
   }

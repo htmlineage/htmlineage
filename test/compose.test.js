@@ -12,7 +12,7 @@ import {
   MESSY_SQL,
 } from "./helpers.js";
 
-const G = (nodes) => ({ trailline: "1.0", nodes });
+const G = (nodes) => ({ lineage: "1.0", nodes });
 const compose = (graph) => composeSql(graph, { report: "r.html" });
 const q1 = { step: "source", kind: "sql", sql: "select amount from sales" };
 const fig = (from, sql, label) => ({

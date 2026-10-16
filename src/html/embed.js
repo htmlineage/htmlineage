@@ -16,7 +16,7 @@ import {
 } from "node:fs";
 import { basename, dirname, join } from "node:path";
 
-import { TraillineError } from "../errors.js";
+import { HtmlineageError } from "../errors.js";
 import {
   GRAPH_ELEMENT_ID,
   GRAPH_MIME,
@@ -24,19 +24,19 @@ import {
   serializeForEmbed,
 } from "../graph/parse.js";
 
-const META_TAG = '<meta name="trailline" content="1.0">';
+const META_TAG = '<meta name="lineage" content="1.0">';
 const OPEN_TAG = `<script type="${GRAPH_MIME}" id="${GRAPH_ELEMENT_ID}">`;
 
 const BODY_CLOSE = /<\/body\s*>/gi;
 const HEAD_CLOSE = /<\/head\s*>/gi;
 const META_OPEN = /<meta\b[^>]*>/gi;
-const TRAILLINE_NAME = /\sname\s*=\s*(["']?)trailline\1(?=[\s/>]|$)/i;
+const LINEAGE_NAME = /\sname\s*=\s*(["']?)lineage\1(?=[\s/>]|$)/i;
 
 /**
- * Put `graph` into `html`: the trailline meta tag in <head> and the graph
+ * Put `graph` into `html`: the lineage meta tag in <head> and the graph
  * block before </body>, each replacing an existing one where it stands.
  * Returns the new HTML; returns `html` unchanged when both are already current.
- * Throws TraillineError when the page has no </body> or no </head>, or when
+ * Throws HtmlineageError when the page has no </body> or no </head>, or when
  * findEmbeddedGraph() rejects it (two blocks, an unclosed block).
  * @param {string} html
  * @param {object} graph  embedded as written; nothing is added to it
@@ -45,7 +45,7 @@ const TRAILLINE_NAME = /\sname\s*=\s*(["']?)trailline\1(?=[\s/>]|$)/i;
 export function embedGraph(html, graph) {
   // Found first so that lookalike text inside an existing (unescaped)
   // block's JSON never gets mistaken for a real </body>, </head> or
-  // trailline <meta>: those matches are ignored when they fall inside it.
+  // lineage <meta>: those matches are ignored when they fall inside it.
   const block = findEmbeddedGraph(html);
   const insideBlock = (index) =>
     block !== null && index >= block.start && index < block.end;
@@ -56,7 +56,7 @@ export function embedGraph(html, graph) {
     bodyEnd = match.index;
   }
   if (bodyEnd === -1) {
-    throw new TraillineError(
+    throw new HtmlineageError(
       "the report has no </body> tag, so the lineage graph was not embedded",
     );
   }
@@ -68,7 +68,7 @@ export function embedGraph(html, graph) {
     break;
   }
   if (headEnd === -1) {
-    throw new TraillineError(
+    throw new HtmlineageError(
       "the report has no </head> tag, so the lineage graph was not embedded",
     );
   }
@@ -85,7 +85,7 @@ export function embedGraph(html, graph) {
   let metaEdit = null;
   for (const match of html.slice(0, headEnd).matchAll(META_OPEN)) {
     if (insideBlock(match.index)) continue;
-    if (TRAILLINE_NAME.test(match[0])) {
+    if (LINEAGE_NAME.test(match[0])) {
       metaEdit = { start: match.index, end: match.index + match[0].length };
       break;
     }
@@ -134,7 +134,9 @@ export function embedFile(reportPath, html, graph) {
         // best effort
       }
     }
-    throw new TraillineError(`could not write ${reportPath}: ${error.message}`);
+    throw new HtmlineageError(
+      `could not write ${reportPath}: ${error.message}`,
+    );
   }
   return true;
 }

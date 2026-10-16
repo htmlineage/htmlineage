@@ -3,7 +3,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, it } from "node:test";
 
-import { TraillineError } from "../src/errors.js";
+import { HtmlineageError } from "../src/errors.js";
 import { findDuplicateKeys } from "../src/graph/duplicates.js";
 import { readGraph, sidecarPath } from "../src/graph/parse.js";
 import { tempDir } from "./helpers.js";
@@ -56,12 +56,12 @@ describe("readGraph with repeated keys", () => {
   it("refuses the graph and names both lines", (t) => {
     const dir = tempDir(t);
     const report = join(dir, "r.html");
-    mkdirSync(join(dir, ".trailline"));
+    mkdirSync(join(dir, ".lineage"));
     writeFileSync(
       sidecarPath(report),
       [
         "{",
-        '  "trailline": "1.0",',
+        '  "lineage": "1.0",',
         '  "nodes": {',
         '    "f1": { "step": "figure" },',
         '    "f2": { "step": "figure" },',
@@ -73,7 +73,7 @@ describe("readGraph with repeated keys", () => {
     assert.throws(
       () => readGraph({ reportPath: report }),
       (error) =>
-        error instanceof TraillineError &&
+        error instanceof HtmlineageError &&
         /same key twice/.test(error.message) &&
         /`nodes\.f1` at line 4 and line 6/.test(error.message),
     );

@@ -13,7 +13,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { buildPayload } from "../src/viewer/payload.js";
-import { TraillineError } from "../src/errors.js";
+import { HtmlineageError } from "../src/errors.js";
 import {
   browserCommand,
   openBrowser,
@@ -27,7 +27,7 @@ const PNG = Buffer.from([
 ]);
 
 const G1 = {
-  trailline: "1.0",
+  lineage: "1.0",
   nodes: {
     q1: { step: "source", kind: "sql", sql: "select amount from sales" },
     f1: {
@@ -43,16 +43,16 @@ const G1 = {
 const BRIDGE = readFileSync(join(CLIENT, "bridge.js"), "utf8");
 const TAG = `<script>${BRIDGE}</script>`;
 const R_F1 =
-  '<html><head></head><body><p>Sales were <span data-trailline="f1">12</span>.</p></body></html>';
+  '<html><head></head><body><p>Sales were <span data-lineage="f1">12</span>.</p></body></html>';
 
-/** Write <dir>/r.html, and <dir>/.trailline/r.json when a graph is given. */
+/** Write <dir>/r.html, and <dir>/.lineage/r.json when a graph is given. */
 function report(t, html, graph) {
   const dir = tempDir(t);
   const path = join(dir, "r.html");
   writeFileSync(path, html);
   if (graph) {
-    mkdirSync(join(dir, ".trailline"));
-    writeFileSync(join(dir, ".trailline", "r.json"), JSON.stringify(graph));
+    mkdirSync(join(dir, ".lineage"));
+    writeFileSync(join(dir, ".lineage", "r.json"), JSON.stringify(graph));
   }
   return { dir, path };
 }
@@ -164,7 +164,7 @@ describe("startServer", () => {
 
   it("finds </head> in any case", async (t) => {
     const html =
-      '<HTML><HEAD></HEAD><BODY><p data-trailline="f1">12</p></BODY></HTML>';
+      '<HTML><HEAD></HEAD><BODY><p data-lineage="f1">12</p></BODY></HTML>';
     const { path } = report(t, html, G1);
     const s = await serve(t, { reportPath: path });
     const res = await get(s, "/report/r.html");
@@ -175,7 +175,7 @@ describe("startServer", () => {
   });
 
   it("adds the bridge at the end of a report with no </head>", async (t) => {
-    const html = '<p>Sales were <span data-trailline="f1">12</span>.</p>';
+    const html = '<p>Sales were <span data-lineage="f1">12</span>.</p>';
     const { path } = report(t, html, G1);
     const s = await serve(t, { reportPath: path });
     const res = await get(s, "/report/r.html");
@@ -263,10 +263,7 @@ describe("startServer", () => {
     const { dir } = report(t, R_F1, G1);
     const path = join(dir, "my report.html");
     writeFileSync(path, R_F1);
-    writeFileSync(
-      join(dir, ".trailline", "my report.json"),
-      JSON.stringify(G1),
-    );
+    writeFileSync(join(dir, ".lineage", "my report.json"), JSON.stringify(G1));
     const s = await serve(t, { reportPath: path });
     const res = await get(s, "/report/my%20report.html");
     assert.equal(res.status, 200);
@@ -396,7 +393,7 @@ describe("startServer", () => {
     writeFileSync(join(dir, ".hidden", "a.txt"), "x");
     const s = await serve(t, { reportPath: path });
     for (const url of [
-      "/report/.trailline/r.json",
+      "/report/.lineage/r.json",
       "/report/.env",
       "/report/.hidden/a.txt",
     ]) {
@@ -425,12 +422,12 @@ describe("startServer", () => {
   it("answers 500 with check's error when the graph can no longer be read", async (t) => {
     const { dir, path } = report(t, R_F1, G1);
     const s = await serve(t, { reportPath: path });
-    rmSync(join(dir, ".trailline", "r.json"));
+    rmSync(join(dir, ".lineage", "r.json"));
     let expected;
     try {
       buildPayload({ reportPath: path });
     } catch (error) {
-      assert.ok(error instanceof TraillineError);
+      assert.ok(error instanceof HtmlineageError);
       expected = error.message;
     }
     const res = await get(s, "/data.json");
@@ -442,7 +439,7 @@ describe("startServer", () => {
   it("still serves the report when the graph is broken", async (t) => {
     const { dir, path } = report(t, R_F1, G1);
     const s = await serve(t, { reportPath: path });
-    rmSync(join(dir, ".trailline", "r.json"));
+    rmSync(join(dir, ".lineage", "r.json"));
     const res = await get(s, "/report/r.html");
     assert.equal(res.status, 200);
   });
@@ -471,7 +468,7 @@ describe("startServer", () => {
     await assert.rejects(
       startServer({ reportPath: path, port: P, exact: true }),
       (error) =>
-        error instanceof TraillineError &&
+        error instanceof HtmlineageError &&
         error.message === `port ${P} is in use`,
     );
   });
@@ -490,7 +487,7 @@ describe("startServer", () => {
     await assert.rejects(
       startServer({ reportPath: path, port: start, exact: false }),
       (error) =>
-        error instanceof TraillineError &&
+        error instanceof HtmlineageError &&
         error.message === `no free port from ${start}; pass --port`,
     );
   });
@@ -533,7 +530,10 @@ describe("openBrowser", () => {
 
   it("resolves false, without throwing, when the command cannot start", async () => {
     assert.equal(
-      await openBrowser({ command: "trailline-no-such-command", args: [] }),
+      await openBrowser({
+        command: "htmlineage-no-such-command",
+        args: [],
+      }),
       false,
     );
   });

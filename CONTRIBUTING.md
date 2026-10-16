@@ -1,4 +1,4 @@
-# Contributing to Trailline
+# Contributing to htmlineage
 
 ## Setup
 
