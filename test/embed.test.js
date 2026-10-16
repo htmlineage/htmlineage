@@ -12,7 +12,7 @@ import {
 import { join } from "node:path";
 import { describe, it } from "node:test";
 
-import { TraillineError } from "../src/errors.js";
+import { HtmlineageError } from "../src/errors.js";
 import { embedFile, embedGraph } from "../src/html/embed.js";
 import {
   findEmbeddedGraph,
@@ -22,8 +22,8 @@ import {
 import { readPage } from "../src/html/page.js";
 import { loadFixture, tempDir } from "./helpers.js";
 
-const META = '<meta name="trailline" content="1.0">';
-const OPEN = '<script type="application/trailline+json" id="trailline-graph">';
+const META = '<meta name="lineage" content="1.0">';
+const OPEN = '<script type="application/lineage+json" id="lineage-graph">';
 const G0 = { nodes: {} };
 const G0_JSON = '{\n  "nodes": {}\n}'; // serializeForEmbed(G0)
 const BLOCK0 = `${OPEN}${G0_JSON}</script>`;
@@ -34,24 +34,24 @@ const NO_HEAD =
 
 const A = "<html><head><title>t</title></head><body><p>x</p></body></html>";
 const B = `<html><head>${META}</head><body>\n${OPEN}{"old":true}</script>\n</body></html>`;
-const C = `<html><head>${META}</head><body><script id=x type='application/trailline+json'>{}</script></body></html>`;
+const C = `<html><head>${META}</head><body><script id=x type='application/lineage+json'>{}</script></body></html>`;
 const D =
-  '<html><head><script type="application/trailline+json">{}</script></head><body></body></html>';
+  '<html><head><script type="application/lineage+json">{}</script></head><body></body></html>';
 const E =
-  '<html><head>\n  <meta content="0.9" name="trailline">\n</head><body></body></html>';
+  '<html><head>\n  <meta content="0.9" name="lineage">\n</head><body></body></html>';
 const F =
-  '<html><head><meta name="description" content="trailline"></head><body></body></html>';
+  '<html><head><meta name="description" content="lineage"></head><body></body></html>';
 const H = "<HTML><HEAD></HEAD><BODY><!-- </body> --><p>x</p></BODY></HTML>";
 const G1 = {
   nodes: { q1: { step: "source", sql: "select '</script>' as s" } },
 };
 const TWO =
-  '<html><head></head><body>\n<script type="application/trailline+json">{}</script>\n<script type="application/trailline+json">{}</script>\n</body></html>';
+  '<html><head></head><body>\n<script type="application/lineage+json">{}</script>\n<script type="application/lineage+json">{}</script>\n</body></html>';
 const UNCLOSED =
-  '<html><head></head><body>\n<script type="application/trailline+json">{}\n</body></html>';
+  '<html><head></head><body>\n<script type="application/lineage+json">{}\n</body></html>';
 
 const failsWith = (message) => (error) =>
-  error instanceof TraillineError && error.message === message;
+  error instanceof HtmlineageError && error.message === message;
 
 describe("embedGraph", () => {
   it("adds the meta tag and the graph block to a page with neither", () => {
@@ -86,7 +86,7 @@ describe("embedGraph", () => {
     );
   });
 
-  it("replaces an out-of-date trailline meta tag in place", () => {
+  it("replaces an out-of-date lineage meta tag in place", () => {
     assert.equal(
       embedGraph(E, G0),
       "<html><head>\n  " +
@@ -100,7 +100,7 @@ describe("embedGraph", () => {
   it("leaves other meta tags alone", () => {
     assert.equal(
       embedGraph(F, G0),
-      '<html><head><meta name="description" content="trailline">' +
+      '<html><head><meta name="description" content="lineage">' +
         META +
         "\n</head><body>" +
         BLOCK0 +
@@ -174,11 +174,11 @@ describe("embedGraph", () => {
   });
 
   // An existing block's unescaped JSON can hold text that looks like
-  // </head>, </body> or a trailline <meta>. Those lookalikes must not be
+  // </head>, </body> or a lineage <meta>. Those lookalikes must not be
   // mistaken for the real tag.
   it("ignores a </head> lookalike inside an existing block's JSON", () => {
     const html =
-      '<html><head><script type="application/trailline+json">' +
+      '<html><head><script type="application/lineage+json">' +
       '{"x":"</head>"}</script></head><body></body></html>';
     assert.equal(
       embedGraph(html, G0),
@@ -188,15 +188,15 @@ describe("embedGraph", () => {
 
   it("refuses a page whose only </body> lookalike is inside an existing block's JSON", () => {
     const html =
-      '<html><head></head><body><script type="application/trailline+json">' +
+      '<html><head></head><body><script type="application/lineage+json">' +
       '{"x":"</body>"}</script></html>';
     assert.throws(() => embedGraph(html, G0), failsWith(NO_BODY));
   });
 
-  it("ignores a trailline meta lookalike inside an existing block's JSON", () => {
+  it("ignores a lineage meta lookalike inside an existing block's JSON", () => {
     const html =
-      '<html><head><script type="application/trailline+json">' +
-      '{"x":"<meta name=trailline>"}</script></head><body></body></html>';
+      '<html><head><script type="application/lineage+json">' +
+      '{"x":"<meta name=lineage>"}</script></head><body></body></html>';
     assert.equal(
       embedGraph(html, G0),
       "<html><head>" + BLOCK0 + META + "\n</head><body></body></html>",
@@ -349,7 +349,7 @@ describe("embedFile", () => {
     assert.throws(
       () => embedFile(path, A, G0),
       (error) =>
-        error instanceof TraillineError &&
+        error instanceof HtmlineageError &&
         error.message.startsWith(`could not write ${path}: `),
     );
     assert.deepEqual(readdirSync(dir), []);

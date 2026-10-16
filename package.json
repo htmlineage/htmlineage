@@ -1,11 +1,11 @@
 {
-  "name": "trailline",
+  "name": "htmlineage",
   "version": "0.1.0-alpha.0",
   "description": "A provenance layer for AI-generated reports — every number, chart, and claim traces back to the query that produced it.",
   "type": "module",
   "main": "index.js",
   "bin": {
-    "trailline": "index.js"
+    "htmlineage": "index.js"
   },
   "files": [
     "index.js",
@@ -24,7 +24,7 @@
     "start": "node index.js"
   },
   "keywords": [
-    "trailline",
+    "htmlineage",
     "provenance",
     "lineage",
     "data-lineage",
@@ -37,12 +37,12 @@
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/trailline/trailline.git"
+    "url": "git+https://github.com/htmlineage/htmlineage.git"
   },
   "bugs": {
-    "url": "https://github.com/trailline/trailline/issues"
+    "url": "https://github.com/htmlineage/htmlineage/issues"
   },
-  "homepage": "https://github.com/trailline/trailline#readme",
+  "homepage": "https://github.com/htmlineage/htmlineage#readme",
   "devDependencies": {
     "@commitlint/cli": "^19.6.1",
     "@commitlint/config-conventional": "^19.6.0",

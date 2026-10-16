@@ -60,7 +60,7 @@ const FORBIDDEN = [/^docs\//, /^test\//, /^scripts\//, /^\.env/];
 
 // npm writes to its cache even for a dry run. Point it at a scratch directory
 // so this works on a locked-down machine and cannot be skewed by a warm cache.
-const cache = mkdtempSync(join(tmpdir(), "trailline-pack-"));
+const cache = mkdtempSync(join(tmpdir(), "htmlineage-pack-"));
 
 let raw;
 try {

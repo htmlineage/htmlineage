@@ -9,7 +9,7 @@ const DEFAULT_PORT = 7171;
 export const name = "view";
 export const summary = "Serve the report beside its lineage";
 
-export const usage = `trailline view <report.html> [options]
+export const usage = `htmlineage view <report.html> [options]
 
 Serves a two-pane page on localhost: the report on the left, the lineage of
 whatever you click on the right. Reads the report and its graph, nothing
@@ -19,7 +19,7 @@ this machine; the report loads what it would load in any browser.
 Options
   --port <number>  Port to serve on (default: the first free port from 7171)
   --no-open        Print the URL instead of opening a browser
-  --graph <path>   Graph JSON to read (default: .trailline/<report>.json
+  --graph <path>   Graph JSON to read (default: .lineage/<report>.json
                    beside the report, or else the block already embedded
                    in it)
   -h, --help       Show this help`;

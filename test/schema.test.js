@@ -20,7 +20,7 @@ function without(node, ...fields) {
 }
 
 /** A minimal graph around the given nodes. */
-const graphOf = (nodes) => ({ trailline: "1.0", nodes });
+const graphOf = (nodes) => ({ lineage: "1.0", nodes });
 
 const sqlSource = {
   step: "source",
@@ -80,13 +80,10 @@ describe("header", () => {
 
   const bad = {
     "a missing version": [{ nodes: {} }, ["S1 error null"]],
-    "a numeric version": [{ trailline: 1, nodes: {} }, ["S1 error null"]],
-    "another major version": [
-      { trailline: "2.0", nodes: {} },
-      ["S1 error null"],
-    ],
-    "missing nodes": [{ trailline: "1.0" }, ["S1 error null"]],
-    "nodes as a list": [{ trailline: "1.0", nodes: [] }, ["S1 error null"]],
+    "a numeric version": [{ lineage: 1, nodes: {} }, ["S1 error null"]],
+    "another major version": [{ lineage: "2.0", nodes: {} }, ["S1 error null"]],
+    "missing nodes": [{ lineage: "1.0" }, ["S1 error null"]],
+    "nodes as a list": [{ lineage: "1.0", nodes: [] }, ["S1 error null"]],
     "a bad built_at": [
       { ...graphOf({}), built_at: "last tuesday" },
       ["S1 error null"],
@@ -122,7 +119,7 @@ describe("header", () => {
   });
 
   it("accepts a later minor version", () => {
-    assert.deepEqual(codes({ trailline: "1.4", nodes: {} }), []);
+    assert.deepEqual(codes({ lineage: "1.4", nodes: {} }), []);
   });
 
   for (const input of [null, [], "graph", 42]) {

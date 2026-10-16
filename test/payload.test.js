@@ -4,7 +4,7 @@ import { describe, it } from "node:test";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { basename, join } from "node:path";
 
-import { TraillineError } from "../src/errors.js";
+import { HtmlineageError } from "../src/errors.js";
 import { readGraph } from "../src/graph/parse.js";
 import { buildPayload } from "../src/viewer/payload.js";
 import {
@@ -23,7 +23,7 @@ const R0 =
   "<html><head><title>r</title></head><body><p>Hello.</p></body></html>";
 
 const G1 = {
-  trailline: "1.0",
+  lineage: "1.0",
   nodes: {
     q1: {
       step: "source",
@@ -43,12 +43,12 @@ const G1 = {
   },
 };
 const R_F1 =
-  '<html><head></head><body><p>Sales were <span data-trailline="f1">12</span>.</p></body></html>';
+  '<html><head></head><body><p>Sales were <span data-lineage="f1">12</span>.</p></body></html>';
 const ONE =
   "-- r.html\nwith\nq1 as (\n    select amount from sales\n),\nf1 (value) as (\n    select amount from q1\n)\nselect 'f1' as figure, 'Sales' as label, cast((select value from f1) as varchar) as value";
 
 const G2 = {
-  trailline: "1.0",
+  lineage: "1.0",
   nodes: {
     q1: G1.nodes.q1,
     x1: {
@@ -69,18 +69,18 @@ const G2 = {
   },
 };
 const R_G2 =
-  '<html><head></head><body><p>Sales were <span data-trailline="f1">12</span>.</p>' +
-  '<table data-trailline="v1"><tr><td>a</td></tr></table>' +
-  '<p data-trailline="i1">Benchmarks sit around 35%.</p></body></html>';
+  '<html><head></head><body><p>Sales were <span data-lineage="f1">12</span>.</p>' +
+  '<table data-lineage="v1"><tr><td>a</td></tr></table>' +
+  '<p data-lineage="i1">Benchmarks sit around 35%.</p></body></html>';
 
-/** Write <dir>/r.html, and <dir>/.trailline/r.json when a graph is given. */
+/** Write <dir>/r.html, and <dir>/.lineage/r.json when a graph is given. */
 function report(t, html, graph) {
   const dir = tempDir(t);
   const path = join(dir, "r.html");
   writeFileSync(path, html);
   if (graph) {
-    mkdirSync(join(dir, ".trailline"));
-    writeFileSync(join(dir, ".trailline", "r.json"), JSON.stringify(graph));
+    mkdirSync(join(dir, ".lineage"));
+    writeFileSync(join(dir, ".lineage", "r.json"), JSON.stringify(graph));
   }
   return { dir, path };
 }
@@ -90,7 +90,7 @@ const F1_SQL = ONE.replace("-- r.html", "-- r.html (f1)");
 const Q1_SQL =
   "-- r.html (q1)\nwith\nq1 as (\n    select amount from sales\n)\nselect * from q1";
 const REFUSED = (name) =>
-  `${name} does not pass \`trailline check\`, so no script was composed`;
+  `${name} does not pass \`htmlineage check\`, so no script was composed`;
 const checkJson = async (path) =>
   JSON.parse((await runCli(["check", path, "--no-embed", "--json"])).out);
 
@@ -130,12 +130,12 @@ describe("buildPayload", () => {
     );
   });
 
-  it("composes the whole report as trailline sql does", (t) => {
+  it("composes the whole report as htmlineage sql does", (t) => {
     const { path } = report(t, R_F1, G1);
     assert.equal(pay(path).composedReport, ONE);
   });
 
-  it("composes each node as trailline sql --id does", (t) => {
+  it("composes each node as htmlineage sql --id does", (t) => {
     const { path } = report(t, R_F1, G1);
     assert.deepEqual(pay(path).composed, { q1: Q1_SQL, f1: F1_SQL });
   });
@@ -175,8 +175,8 @@ describe("buildPayload", () => {
 
   it("still opens a graph that is valid JSON but not an object", async (t) => {
     const { dir, path } = report(t, R0);
-    mkdirSync(join(dir, ".trailline"));
-    writeFileSync(join(dir, ".trailline", "r.json"), "null");
+    mkdirSync(join(dir, ".lineage"));
+    writeFileSync(join(dir, ".lineage", "r.json"), "null");
     const p = pay(path);
     assert.equal(p.graph, null);
     assert.deepEqual(p.trace, {});
@@ -191,20 +191,20 @@ describe("buildPayload", () => {
     assert.throws(
       () => pay(path),
       (err) =>
-        err instanceof TraillineError &&
+        err instanceof HtmlineageError &&
         err.message ===
-          `no lineage graph found for ${path}. Looked for ${join(dir, ".trailline", "r.json")} and a <script type="application/trailline+json"> block in the report.`,
+          `no lineage graph found for ${path}. Looked for ${join(dir, ".lineage", "r.json")} and a <script type="application/lineage+json"> block in the report.`,
     );
   });
 
   it("throws check's error when the graph is not valid JSON", async (t) => {
     const { dir, path } = report(t, R0);
-    mkdirSync(join(dir, ".trailline"));
-    writeFileSync(join(dir, ".trailline", "r.json"), '{"trailline": }');
+    mkdirSync(join(dir, ".lineage"));
+    writeFileSync(join(dir, ".lineage", "r.json"), '{"lineage": }');
     const { err } = await runCli(["check", path, "--no-embed"]);
     assert.throws(
       () => pay(path),
-      (e) => e instanceof TraillineError && `trailline: ${e.message}` === err,
+      (e) => e instanceof HtmlineageError && `htmlineage: ${e.message}` === err,
     );
   });
 });
@@ -232,14 +232,14 @@ const CLEAN_IDS = [
 ];
 
 describe("buildPayload: fixtures", () => {
-  it("composes clean as trailline sql does", () => {
+  it("composes clean as htmlineage sql does", () => {
     const p = fx("clean");
     assert.equal(p.report, "august-retention.html");
     assert.equal(p.composedReport, CLEAN_SQL);
     assert.equal(p.refused, null);
   });
 
-  it("composes each of clean's nodes as trailline sql --id does", () => {
+  it("composes each of clean's nodes as htmlineage sql --id does", () => {
     const { composed } = fx("clean");
     assert.deepEqual(Object.keys(composed), CLEAN_IDS);
     assert.equal(composed.f3, CLEAN_F3_SQL);
@@ -314,7 +314,7 @@ describe("buildPayload: fixtures", () => {
       const sidecar = join(
         reportPath,
         "..",
-        ".trailline",
+        ".lineage",
         `${basename(reportPath, ".html")}.json`,
       );
       return [reportPath, sidecar].filter((file) => existsSync(file));

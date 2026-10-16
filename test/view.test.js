@@ -10,7 +10,7 @@ import { buildPayload } from "../src/viewer/payload.js";
 import { FIXTURE_NAMES, loadFixture, runCli, tempDir } from "./helpers.js";
 
 const G1 = {
-  trailline: "1.0",
+  lineage: "1.0",
   nodes: {
     q1: { step: "source", kind: "sql", sql: "select amount from sales" },
     f1: {
@@ -26,16 +26,16 @@ const G1 = {
 const R0 =
   "<html><head><title>r</title></head><body><p>Hello.</p></body></html>";
 const R_F1 =
-  '<html><head></head><body><p>Sales were <span data-trailline="f1">12</span>.</p></body></html>';
+  '<html><head></head><body><p>Sales were <span data-lineage="f1">12</span>.</p></body></html>';
 
-/** Write <dir>/r.html, and <dir>/.trailline/r.json when a graph is given. */
+/** Write <dir>/r.html, and <dir>/.lineage/r.json when a graph is given. */
 function report(t, html, graph) {
   const dir = tempDir(t);
   const path = join(dir, "r.html");
   writeFileSync(path, html);
   if (graph) {
-    mkdirSync(join(dir, ".trailline"));
-    writeFileSync(join(dir, ".trailline", "r.json"), JSON.stringify(graph));
+    mkdirSync(join(dir, ".lineage"));
+    writeFileSync(join(dir, ".lineage", "r.json"), JSON.stringify(graph));
   }
   return { dir, path };
 }
@@ -63,7 +63,7 @@ const fetchUrl = (url) =>
   });
 
 /**
- * Run `trailline view` in-process without awaiting it. Resolves once the
+ * Run `htmlineage view` in-process without awaiting it. Resolves once the
  * first line is printed, with the url, what was printed, what was opened and
  * `stop()`, which ends the command and resolves its exit code.
  */
@@ -104,7 +104,7 @@ function view(t, argv, { open } = {}) {
 }
 
 const USAGE = (message) =>
-  `trailline: ${message}\nTry \`trailline view --help\`.`;
+  `htmlineage: ${message}\nTry \`htmlineage view --help\`.`;
 
 describe("view: help", () => {
   it("says what leaves the machine and what does not", async () => {
@@ -163,7 +163,7 @@ describe("view: invocation", () => {
     const { code, out, err } = await runCli(["view", path]);
     assert.equal(code, 1);
     assert.equal(out, "");
-    assert.equal(err, `trailline: report not found: ${path}`);
+    assert.equal(err, `htmlineage: report not found: ${path}`);
     const checked = await runCli(["check", path]);
     assert.equal(err, checked.err);
   });
@@ -189,7 +189,7 @@ describe("view: invocation", () => {
     ]);
     assert.equal(code, 1);
     assert.equal(out, "");
-    assert.equal(err, `trailline: port ${P} is in use`);
+    assert.equal(err, `htmlineage: port ${P} is in use`);
   });
 });
 
@@ -275,7 +275,7 @@ describe("view: fixtures", () => {
       const { dir, reportPath, expected } = loadFixture(name);
       const sidecar = join(
         dir,
-        ".trailline",
+        ".lineage",
         expected.report.replace(/\.html$/, ".json"),
       );
       const files = [reportPath, sidecar].filter((file) => existsSync(file));

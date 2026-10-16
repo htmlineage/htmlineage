@@ -30,12 +30,12 @@ export const FIXTURE_NAMES = ["clean", "messy", "broken"];
 
 /** A throwaway directory, removed when the test finishes. */
 export function tempDir(t) {
-  const dir = mkdtempSync(join(tmpdir(), "trailline-test-"));
+  const dir = mkdtempSync(join(tmpdir(), "htmlineage-test-"));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   return dir;
 }
 
-/** The scripts `trailline sql` composes for the clean and messy fixtures. */
+/** The scripts `htmlineage sql` composes for the clean and messy fixtures. */
 export const CLEAN_SQL = `-- august-retention.html
 with
 q1 as (

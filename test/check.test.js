@@ -17,7 +17,7 @@ import { embedGraph } from "../src/html/embed.js";
 import { loadFixture, runCli, tempDir } from "./helpers.js";
 
 const GX = {
-  trailline: "1.0",
+  lineage: "1.0",
   nodes: {
     x1: {
       step: "source",
@@ -28,18 +28,18 @@ const GX = {
     },
   },
 };
-const G0 = { trailline: "1.0", nodes: {} };
+const G0 = { lineage: "1.0", nodes: {} };
 const R0 =
   "<html><head><title>r</title></head><body><p>Hello.</p></body></html>";
 
-/** Write <dir>/r.html, and <dir>/.trailline/r.json when a graph is given. */
+/** Write <dir>/r.html, and <dir>/.lineage/r.json when a graph is given. */
 function report(t, html, graph) {
   const dir = tempDir(t);
   const path = join(dir, "r.html");
   writeFileSync(path, html);
   if (graph) {
-    mkdirSync(join(dir, ".trailline"));
-    writeFileSync(join(dir, ".trailline", "r.json"), JSON.stringify(graph));
+    mkdirSync(join(dir, ".lineage"));
+    writeFileSync(join(dir, ".lineage", "r.json"), JSON.stringify(graph));
   }
   return { dir, path };
 }
@@ -51,7 +51,7 @@ describe("check: invocation", () => {
     assert.equal(out, "");
     assert.equal(
       err,
-      "trailline: missing the report to check\nTry `trailline check --help`.",
+      "htmlineage: missing the report to check\nTry `htmlineage check --help`.",
     );
   });
 
@@ -61,7 +61,7 @@ describe("check: invocation", () => {
     assert.equal(out, "");
     assert.equal(
       err,
-      "trailline: expected one report, got 2\nTry `trailline check --help`.",
+      "htmlineage: expected one report, got 2\nTry `htmlineage check --help`.",
     );
   });
 });
@@ -74,7 +74,7 @@ describe("check: reading", () => {
     assert.equal(out, "");
     assert.equal(
       err,
-      `trailline: no lineage graph found for ${path}. Looked for ${join(dir, ".trailline", "r.json")} and a <script type="application/trailline+json"> block in the report.`,
+      `htmlineage: no lineage graph found for ${path}. Looked for ${join(dir, ".lineage", "r.json")} and a <script type="application/lineage+json"> block in the report.`,
     );
   });
 
@@ -90,7 +90,7 @@ describe("check: reading", () => {
     );
     assert.equal(readFileSync(path, "utf8"), embedGraph(R0, GX));
     assert.equal(
-      readFileSync(join(dir, ".trailline", "r.json"), "utf8"),
+      readFileSync(join(dir, ".lineage", "r.json"), "utf8"),
       JSON.stringify(G0),
     );
   });
@@ -101,10 +101,10 @@ describe("check: reading", () => {
     const { code, out, err } = await runCli(["check", path]);
     assert.equal(code, 1);
     assert.equal(out, "");
-    assert.equal(err, `trailline: report not found: ${join(dir, "r.html")}`);
+    assert.equal(err, `htmlineage: report not found: ${join(dir, "r.html")}`);
   });
 
-  it("fails with a TraillineError when the report cannot be read", async (t) => {
+  it("fails with a HtmlineageError when the report cannot be read", async (t) => {
     const { dir, path } = report(t, R0, G0);
     rmSync(path);
     mkdirSync(path);
@@ -112,7 +112,7 @@ describe("check: reading", () => {
     assert.equal(code, 1);
     assert.equal(out, "");
     assert.ok(
-      err.startsWith(`trailline: could not read ${join(dir, "r.html")}: `),
+      err.startsWith(`htmlineage: could not read ${join(dir, "r.html")}: `),
       err,
     );
     assert.ok(!err.includes("\n    at "), err);
@@ -129,13 +129,13 @@ describe("check: reading", () => {
     ]);
     assert.equal(code, 1);
     assert.equal(out, "");
-    assert.equal(err, `trailline: graph file not found: ${missing}`);
+    assert.equal(err, `htmlineage: graph file not found: ${missing}`);
   });
 });
 
 const R_ERR =
-  '<html><head></head><body><p data-trailline="f9">x</p></body></html>';
-const C1_LINE = '    f9   C1 error     data-trailline="f9" resolves to no node';
+  '<html><head></head><body><p data-lineage="f9">x</p></body></html>';
+const C1_LINE = '    f9   C1 error     data-lineage="f9" resolves to no node';
 
 const R_WARN =
   "<html><head></head><body><p>We had 1,240 visits.</p></body></html>";
@@ -145,9 +145,9 @@ const ZERO =
   "r.html\n\n  sources    0\n  views      0\n  figures    0\n  insights   0";
 
 const EMBEDDED_R0 =
-  '<html><head><title>r</title><meta name="trailline" content="1.0">\n</head>' +
-  '<body><p>Hello.</p><script type="application/trailline+json" id="trailline-graph">' +
-  '{\n  "trailline": "1.0",\n  "nodes": {}\n}</script>\n</body></html>';
+  '<html><head><title>r</title><meta name="lineage" content="1.0">\n</head>' +
+  '<body><p>Hello.</p><script type="application/lineage+json" id="lineage-graph">' +
+  '{\n  "lineage": "1.0",\n  "nodes": {}\n}</script>\n</body></html>';
 
 describe("check: summary", () => {
   it("prints the summary of a report with nothing to flag", async (t) => {
@@ -199,7 +199,7 @@ describe("check: exit code", () => {
     assert.equal(out, "");
     assert.equal(
       err,
-      "trailline: the report has no </body> tag, so the lineage graph was not embedded",
+      "htmlineage: the report has no </body> tag, so the lineage graph was not embedded",
     );
     assert.equal(readFileSync(path, "utf8"), html);
   });
@@ -227,7 +227,7 @@ describe("check: exit code", () => {
 describe("check: output", () => {
   it("prints the summary as JSON with --json", async (t) => {
     const html =
-      '<html><head></head><body><p>We had 1,240 visits.</p><p data-trailline="f9">x</p></body></html>';
+      '<html><head></head><body><p>We had 1,240 visits.</p><p data-lineage="f9">x</p></body></html>';
     const { path } = report(t, html, G0);
     const { code, out, err } = await runCli([
       "check",
@@ -251,7 +251,7 @@ describe("check: output", () => {
           severity: "error",
           node: "f9",
           field: null,
-          message: 'data-trailline="f9" resolves to no node',
+          message: 'data-lineage="f9" resolves to no node',
         },
         {
           code: "C2",
@@ -288,7 +288,7 @@ describe("check: output", () => {
 
   it("colours the summary when the io asks for colour", async (t) => {
     const html =
-      '<html><head></head><body><p>We had 1,240 visits.</p><p data-trailline="f9">x</p></body></html>';
+      '<html><head></head><body><p>We had 1,240 visits.</p><p data-lineage="f9">x</p></body></html>';
     const { path } = report(t, html, G0);
     const { code, out } = await runCli(["check", path, "--no-embed"], {
       color: true,
@@ -296,7 +296,7 @@ describe("check: output", () => {
     assert.equal(code, 1);
     assert.equal(
       out,
-      `${ZERO}\n\n  needs attention\n    graph   \x1b[33mC2 warning\x1b[0m   ${C2_MSG}\n    f9      \x1b[31mC1 error\x1b[0m     data-trailline="f9" resolves to no node`,
+      `${ZERO}\n\n  needs attention\n    graph   \x1b[33mC2 warning\x1b[0m   ${C2_MSG}\n    f9      \x1b[31mC1 error\x1b[0m     data-lineage="f9" resolves to no node`,
     );
   });
 });
@@ -399,7 +399,7 @@ describe("check: fixtures", () => {
         "    i3         S4 error     insight is missing `text`",
         "    Top-Plan   S2 error     `Top-Plan` is not a valid id: use lowercase letters, digits and _, starting with a letter",
         '    m1         S3 error     unknown step "metric"; expected one of source, view, figure, insight',
-        '    f9         C1 error     data-trailline="f9" resolves to no node',
+        '    f9         C1 error     data-lineage="f9" resolves to no node',
         "    v2         C1 error     view is not bound to any element on the page",
         "    i2         C5 error     an insight rests on views, figures and insights only",
         "    f3         C6 error     cycle f3 -> f4 -> f3",

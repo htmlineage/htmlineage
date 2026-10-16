@@ -3,7 +3,7 @@
  *
  * A report is read into two flat lists, in document order:
  *
- *   bindings  every element carrying `data-trailline`, however deep or
+ *   bindings  every element carrying `data-lineage`, however deep or
  *             hidden, for C1 (unknown/invalid ids) and C3 (missing bindings).
  *   prose     every visible text run, tagged with the id of its nearest
  *             bound ancestor (or `null` when unbound), for C2 (bare
@@ -53,8 +53,8 @@ export function readPage(html, { skip = () => false } = {}) {
       if (child.nodeType === 1) {
         let childNode = node;
         let childHidden = hidden;
-        if (child.hasAttribute("data-trailline")) {
-          const id = child.getAttribute("data-trailline") ?? "";
+        if (child.hasAttribute("data-lineage")) {
+          const id = child.getAttribute("data-lineage") ?? "";
           bindings.push({
             id,
             text: clean(child.textContent),

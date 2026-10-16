@@ -1,6 +1,6 @@
 /**
  * A figure's `expr`: a SQL scalar expression over figure ids, passed through
- * as written. Trailline has no grammar for it. It only finds the ids the text
+ * as written. htmlineage has no grammar for it. It only finds the ids the text
  * names as bare words, and says whether the text can be read at all (brackets
  * and quotes close, and no comment).
  */

@@ -62,6 +62,6 @@ jobs:
       - name: Install the tarball and run the binary
         run: |
           npm pack --pack-destination "$RUNNER_TEMP"
-          npm install --global "$RUNNER_TEMP"/trailline-*.tgz
-          trailline --version
-          trailline --help
+          npm install --global "$RUNNER_TEMP"/htmlineage-*.tgz
+          htmlineage --version
+          htmlineage --help

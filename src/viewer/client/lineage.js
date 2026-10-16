@@ -590,14 +590,14 @@ export async function copyText(text, { clipboard, execCopy }) {
  */
 export function fromReport(data, message) {
   if (!isObject(message)) return null;
-  if (message.trailline === "back") return { type: "back" };
-  if (message.trailline === "select") {
+  if (message.lineage === "back") return { type: "back" };
+  if (message.lineage === "select") {
     const { id } = message;
     const known =
       typeof id === "string" && Object.hasOwn(nodesOf(data.graph), id);
     return known ? { type: "select", id } : null;
   }
-  if (message.trailline === "ready") {
+  if (message.lineage === "ready") {
     const nodes = nodesOf(data.graph);
     const counts = isObject(message.counts) ? message.counts : {};
     return {

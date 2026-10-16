@@ -45,7 +45,7 @@ function compiler(nodes) {
 
 /** Why a report that fails `check` gets no script. */
 export const refusal = (report) =>
-  `${report} does not pass \`trailline check\`, so no script was composed`;
+  `${report} does not pass \`htmlineage check\`, so no script was composed`;
 
 const NOTHING = ", so there is nothing to compose";
 

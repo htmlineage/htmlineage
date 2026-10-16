@@ -6,10 +6,10 @@ tested against them. If one of them is awkward to write, the format is wrong.
 | Fixture  | Graph lives in           | What it covers                                   |
 | -------- | ------------------------ | ------------------------------------------------- |
 | `clean`  | embedded in the HTML     | The happy path: everything traces, nothing fires |
-| `messy`  | `.trailline/<stem>.json` | Every warning, no errors                         |
-| `broken` | `.trailline/<stem>.json` | Every error, and S8                              |
+| `messy`  | `.lineage/<stem>.json` | Every warning, no errors                         |
+| `broken` | `.lineage/<stem>.json` | Every error, and S8                              |
 
-Each folder has an `expected.json`: the issues `trailline check` must report,
+Each folder has an `expected.json`: the issues `htmlineage check` must report,
 as `{ code, severity, node }`. Tests for a module compare against the subset
 of codes that module owns, so the files stay the one contract as `check`
 grows.
@@ -20,7 +20,7 @@ edits reports in place, and its tests compare against these originals.
 ## Capture files
 
 The Claude Code hook (not shipped yet) would write one file per warehouse
-call to `.trailline/captured/<n>.json`. `check` does not read these files. The
+call to `.lineage/captured/<n>.json`. `check` does not read these files. The
 shape is fixed here so the hook can be added without a format change:
 
 ```json

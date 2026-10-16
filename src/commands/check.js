@@ -11,16 +11,16 @@ import { proseSkip, readPage } from "../html/page.js";
 export const name = "check";
 export const summary = "Validate a report's lineage and embed the graph";
 
-export const usage = `trailline check <report.html> [options]
+export const usage = `htmlineage check <report.html> [options]
 
 Reads the lineage graph beside the report, checks it against the report's
-data-trailline bindings, embeds it into the HTML, and prints a summary.
+data-lineage bindings, embeds it into the HTML, and prints a summary.
 
 Exit code is 0 when the report passes (warnings still pass) and 1 when it
 does not.
 
 Options
-  --graph <path>   Graph JSON to read (default: .trailline/<report>.json
+  --graph <path>   Graph JSON to read (default: .lineage/<report>.json
                    beside the report, or else the block already embedded
                    in it)
   --no-embed       Check only; leave the report file untouched

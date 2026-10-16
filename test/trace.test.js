@@ -3,7 +3,7 @@ import { describe, it } from "node:test";
 
 import { traceGraph } from "../src/graph/trace.js";
 
-const G = (nodes) => ({ trailline: "1.0", nodes });
+const G = (nodes) => ({ lineage: "1.0", nodes });
 const src = { step: "source", kind: "sql" };
 const ext = { step: "source", kind: "external", ref: "targets.csv" };
 const view = { step: "view", from: ["q1"] };

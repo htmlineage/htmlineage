@@ -47,7 +47,7 @@ import {
 } from "../src/viewer/client/lineage.js";
 
 const G = {
-  trailline: "1.0",
+  lineage: "1.0",
   nodes: {
     q1: {
       step: "source",
@@ -160,7 +160,7 @@ const data = (over = {}) => ({
 const fx = (name) => buildPayload({ reportPath: loadFixture(name).reportPath });
 
 const REFUSED =
-  "r.html does not pass `trailline check`, so no script was composed";
+  "r.html does not pass `htmlineage check`, so no script was composed";
 // Issues as check reports them.
 const issue = (code, node, message, severity = "warning") => ({
   code,
@@ -679,7 +679,7 @@ describe("nodesOf", () => {
   });
   it("gives no nodes when nodes is missing or not an object", () => {
     for (const nodes of [undefined, 5, [], null]) {
-      assert.deepEqual(nodesOf({ trailline: "1.0", nodes }), {});
+      assert.deepEqual(nodesOf({ lineage: "1.0", nodes }), {});
     }
   });
   it("leaves out nodes that are not objects", () => {
@@ -755,13 +755,13 @@ describe("fromReport", () => {
       5,
       {},
       { type: "select", id: "f1" },
-      { trailline: "paint" },
+      { lineage: "paint" },
     ]) {
       assert.equal(fromReport(d, m), null, JSON.stringify(m));
     }
   });
   it("reads a click on a bound element", () => {
-    assert.deepEqual(fromReport(d, { trailline: "select", id: "f1" }), {
+    assert.deepEqual(fromReport(d, { lineage: "select", id: "f1" }), {
       type: "select",
       id: "f1",
     });
@@ -775,24 +775,20 @@ describe("fromReport", () => {
       5,
       ["f1"],
     ]) {
-      assert.equal(
-        fromReport(d, { trailline: "select", id }),
-        null,
-        String(id),
-      );
+      assert.equal(fromReport(d, { lineage: "select", id }), null, String(id));
     }
   });
   it("ignores a select when the graph has no nodes", () => {
-    const m = { trailline: "select", id: "f1" };
+    const m = { lineage: "select", id: "f1" };
     assert.equal(fromReport({ ...d, graph: null }, m), null);
     assert.equal(fromReport({ ...d, graph: { nodes: 5 } }, m), null);
   });
   it("reads Escape in the report as back", () => {
-    assert.deepEqual(fromReport(d, { trailline: "back" }), { type: "back" });
+    assert.deepEqual(fromReport(d, { lineage: "back" }), { type: "back" });
   });
   it("reads how many places each node has on the page", () => {
     const counts = { f1: 2, v1: 1 };
-    assert.deepEqual(fromReport(d, { trailline: "ready", counts }), {
+    assert.deepEqual(fromReport(d, { lineage: "ready", counts }), {
       type: "ready",
       counts,
     });
@@ -807,14 +803,14 @@ describe("fromReport", () => {
       i1: 1.5,
       q1: -1,
     };
-    assert.deepEqual(fromReport(d, { trailline: "ready", counts }), {
+    assert.deepEqual(fromReport(d, { lineage: "ready", counts }), {
       type: "ready",
       counts: { f1: 2 },
     });
   });
   it("reads ready with no usable counts as none", () => {
     for (const counts of [undefined, null, 5, []]) {
-      assert.deepEqual(fromReport(d, { trailline: "ready", counts }), {
+      assert.deepEqual(fromReport(d, { lineage: "ready", counts }), {
         type: "ready",
         counts: {},
       });
@@ -1690,7 +1686,7 @@ describe("lineage: fixtures", () => {
       "Counts every site session in the web sessions mart over the 30 days before the report ran, across all channels, devices and landing pages",
     );
   });
-  it("copies clean's SQL as trailline sql does", () => {
+  it("copies clean's SQL as htmlineage sql does", () => {
     const d = fx("clean");
     assert.equal(reportSql(d).sql, CLEAN_SQL);
     assert.equal(chainSql(d, "f3").sql, CLEAN_F3_SQL);
@@ -1699,7 +1695,7 @@ describe("lineage: fixtures", () => {
     const d = fx("broken");
     const off = { sql: null, reason: d.refused };
     const printed = await runCli(["sql", loadFixture("broken").reportPath]);
-    assert.equal(`trailline: ${d.refused}`, printed.err);
+    assert.equal(`htmlineage: ${d.refused}`, printed.err);
     assert.deepEqual(reportSql(d), off);
     for (const [id, node] of Object.entries(d.graph.nodes)) {
       assert.deepEqual(chainSql(d, id), off, id);
@@ -1855,9 +1851,9 @@ describe("lineage: fixtures", () => {
       "null",
       "[]",
       '"x"',
-      '{"trailline":"1.0"}',
-      '{"trailline":"1.0","nodes":5}',
-      '{"trailline":"1.0","nodes":[]}',
+      '{"lineage":"1.0"}',
+      '{"lineage":"1.0","nodes":5}',
+      '{"lineage":"1.0","nodes":[]}',
     ]) {
       const graphPath = join(dir, "g.json");
       writeFileSync(graphPath, text);
@@ -1892,13 +1888,13 @@ describe("lineage: fixtures", () => {
   });
   it("selects every bound id on clean", () => {
     const d = fx("clean");
-    const ids = [...d.html.matchAll(/data-trailline="([^"]*)"/g)].map(
+    const ids = [...d.html.matchAll(/data-lineage="([^"]*)"/g)].map(
       (m) => m[1],
     );
     assert.ok(ids.length > 0);
     for (const id of ids) {
       assert.deepEqual(
-        fromReport(d, { trailline: "select", id }),
+        fromReport(d, { lineage: "select", id }),
         { type: "select", id },
         id,
       );

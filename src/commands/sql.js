@@ -1,7 +1,7 @@
 import { basename } from "node:path";
 
 import { checkRules } from "../check/rules.js";
-import { TraillineError, UsageError } from "../errors.js";
+import { HtmlineageError, UsageError } from "../errors.js";
 import { readGraph, readText } from "../graph/parse.js";
 import { validateGraph } from "../graph/schema.js";
 import { proseSkip, readPage } from "../html/page.js";
@@ -10,16 +10,16 @@ import { composeSql, refusal } from "../sql/compose.js";
 export const name = "sql";
 export const summary = "Compose the report into one runnable SQL script";
 
-export const usage = `trailline sql <report.html> [--id <node>] [options]
+export const usage = `htmlineage sql <report.html> [--id <node>] [options]
 
 Joins every source, view and figure in the report's lineage graph into a
 single script a reviewer can paste into the warehouse. External and
 ungrounded nodes are listed as trailing comments. A report that fails
-\`trailline check\` is refused.
+\`htmlineage check\` is refused.
 
 Options
   --id <node>      Compose only this node and what it rests on
-  --graph <path>   Graph JSON to read (default: .trailline/<report>.json
+  --graph <path>   Graph JSON to read (default: .lineage/<report>.json
                    beside the report, or else the block already embedded
                    in it)
   -h, --help       Show this help`;
@@ -58,7 +58,7 @@ export async function run(parsed, io) {
   const issues = [...validateGraph(graph), ...checkRules(graph, page)];
   const report = basename(reportPath);
   if (issues.some((issue) => issue.severity === "error")) {
-    throw new TraillineError(refusal(report));
+    throw new HtmlineageError(refusal(report));
   }
   io.out(composeSql(graph, { report, id }));
   return 0;

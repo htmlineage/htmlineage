@@ -3,30 +3,30 @@
  *
  * A graph lives in one of two places:
  *
- *   sidecar   .trailline/<report-stem>.json beside the report. The model
+ *   sidecar   .lineage/<report-stem>.json beside the report. The model
  *             writes this during the build; it is the working copy.
- *   embedded  <script type="application/trailline+json"> inside the report.
+ *   embedded  <script type="application/lineage+json"> inside the report.
  *             `check` writes this; it is what travels when the file is sent.
  *
  * Both hold the same object. When both exist the sidecar wins, because a
  * build in progress has not been re-embedded yet.
  *
  * The HTML is scanned as text, not parsed: the graph block is the one element
- * Trailline owns, and `check` will replace it in place using the offsets
+ * htmlineage owns, and `check` will replace it in place using the offsets
  * returned here, without reserializing anything else in the page.
  */
 
 import { existsSync, readFileSync } from "node:fs";
 import { basename, dirname, extname, join, relative } from "node:path";
 
-import { TraillineError } from "../errors.js";
+import { HtmlineageError } from "../errors.js";
 import { findDuplicateKeys } from "./duplicates.js";
 
-export const GRAPH_MIME = "application/trailline+json";
-export const GRAPH_ELEMENT_ID = "trailline-graph";
-export const SIDECAR_DIR = ".trailline";
+export const GRAPH_MIME = "application/lineage+json";
+export const GRAPH_ELEMENT_ID = "lineage-graph";
+export const SIDECAR_DIR = ".lineage";
 
-/** `reports/aug.html` → `reports/.trailline/aug.json`. The report need not exist. */
+/** `reports/aug.html` → `reports/.lineage/aug.json`. The report need not exist. */
 export function sidecarPath(reportPath) {
   const stem = basename(reportPath, extname(reportPath));
   return join(dirname(reportPath), SIDECAR_DIR, `${stem}.json`);
@@ -37,7 +37,7 @@ const OPEN_SCRIPT = /<script\b[^>]*>/gi;
 // `>` or the end of input, so `</scripture>` inside the JSON does not close it.
 const CLOSE_SCRIPT = /<\/script(?=[\s/>]|$)/gi;
 const TYPE_ATTR =
-  /\stype\s*=\s*(["']?)application\/trailline\+json\1(?=[\s/>]|$)/i;
+  /\stype\s*=\s*(["']?)application\/lineage\+json\1(?=[\s/>]|$)/i;
 
 /**
  * Locate the embedded graph block in an HTML string. Returns null when there
@@ -54,7 +54,7 @@ export function findEmbeddedGraph(html) {
     CLOSE_SCRIPT.lastIndex = contentStart;
     const contentEnd = CLOSE_SCRIPT.exec(html)?.index ?? -1;
     if (contentEnd === -1) {
-      throw new TraillineError(
+      throw new HtmlineageError(
         `the embedded lineage graph at ${lineCol(html, match.index)} is never closed with </script>`,
       );
     }
@@ -69,7 +69,7 @@ export function findEmbeddedGraph(html) {
   }
   if (blocks.length > 1) {
     const where = blocks.map((b) => lineCol(html, b.start)).join(", ");
-    throw new TraillineError(
+    throw new HtmlineageError(
       `the report holds ${blocks.length} embedded lineage graphs (at ${where}); expected one`,
     );
   }
@@ -106,7 +106,7 @@ export function parseGraphText(text, { label, source = text, offset = 0 }) {
       /\s*(in JSON )?at position \d+.*$/,
       "",
     );
-    throw new TraillineError(`${label} is not valid JSON${where}: ${reason}`);
+    throw new HtmlineageError(`${label} is not valid JSON${where}: ${reason}`);
   }
 
   const duplicates = findDuplicateKeys(text);
@@ -115,7 +115,7 @@ export function parseGraphText(text, { label, source = text, offset = 0 }) {
       ({ path, first, second }) =>
         `  \`${path}\` at ${lineOf(source, offset + first)} and ${lineOf(source, offset + second)}`,
     );
-    throw new TraillineError(
+    throw new HtmlineageError(
       `${label} defines the same key twice, so the first would be silently dropped:\n${lines.join("\n")}`,
     );
   }
@@ -132,7 +132,7 @@ export function readGraph({ reportPath, graphPath } = {}) {
     return { graph: readJsonFile(graphPath), origin: "file", path: graphPath };
   }
   if (!reportPath) {
-    throw new TraillineError("no report or graph file given");
+    throw new HtmlineageError("no report or graph file given");
   }
 
   const sidecar = sidecarPath(reportPath);
@@ -143,7 +143,7 @@ export function readGraph({ reportPath, graphPath } = {}) {
   const html = readText(reportPath, "report");
   const block = findEmbeddedGraph(html);
   if (!block) {
-    throw new TraillineError(
+    throw new HtmlineageError(
       `no lineage graph found for ${display(reportPath)}. Looked for ` +
         `${display(sidecar)} and a <script type="${GRAPH_MIME}"> block in the report.`,
     );
@@ -160,15 +160,15 @@ function readJsonFile(path) {
   return parseGraphText(readText(path, "graph file"), { label: display(path) });
 }
 
-/** Read a file as text; failures become `TraillineError`s worded for the builder. */
+/** Read a file as text; failures become `HtmlineageError`s worded for the builder. */
 export function readText(path, what) {
   try {
     return readFileSync(path, "utf8");
   } catch (error) {
     if (error.code === "ENOENT") {
-      throw new TraillineError(`${what} not found: ${display(path)}`);
+      throw new HtmlineageError(`${what} not found: ${display(path)}`);
     }
-    throw new TraillineError(
+    throw new HtmlineageError(
       `could not read ${display(path)}: ${error.message}`,
     );
   }

@@ -40,7 +40,7 @@ async function dispatch(argv, io) {
   const [first, ...rest] = argv;
 
   if (HELP_FLAGS.has(first)) {
-    // `trailline --help check` is the same as `trailline check --help`.
+    // `htmlineage --help check` is the same as `htmlineage check --help`.
     const named = byName.get(rest[0]);
     io.out(named ? named.usage : topLevelHelp());
     return EXIT_OK;
@@ -82,16 +82,16 @@ export async function main(argv = process.argv.slice(2), io = defaultIo) {
     return await dispatch(argv, io);
   } catch (error) {
     if (error instanceof UsageError) {
-      io.err(`trailline: ${error.message}`);
+      io.err(`htmlineage: ${error.message}`);
       io.err(
         error.command
-          ? `Try \`trailline ${error.command} --help\`.`
-          : "Try `trailline --help`.",
+          ? `Try \`htmlineage ${error.command} --help\`.`
+          : "Try `htmlineage --help`.",
       );
       return EXIT_USAGE;
     }
     if (typeof error?.exitCode === "number") {
-      io.err(`trailline: ${error.message}`);
+      io.err(`htmlineage: ${error.message}`);
       return error.exitCode;
     }
     throw error;

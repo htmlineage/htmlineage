@@ -9,7 +9,7 @@ import http from "node:http";
 import { dirname, extname, isAbsolute, join, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { TraillineError } from "../errors.js";
+import { HtmlineageError } from "../errors.js";
 import { buildPayload } from "./payload.js";
 
 const CLIENT = fileURLToPath(new URL("./client/", import.meta.url));
@@ -102,10 +102,10 @@ async function listen(server, port, exact) {
       return server.address().port;
     } catch (error) {
       if (error.code !== "EADDRINUSE") throw error;
-      if (exact) throw new TraillineError(`port ${candidate} is in use`);
+      if (exact) throw new HtmlineageError(`port ${candidate} is in use`);
     }
   }
-  throw new TraillineError(`no free port from ${port}; pass --port`);
+  throw new HtmlineageError(`no free port from ${port}; pass --port`);
 }
 
 /**
@@ -133,7 +133,7 @@ export async function startServer({
         const payload = buildPayload({ reportPath, graphPath });
         send(res, 200, TYPES[".json"], JSON.stringify(payload));
       } catch (error) {
-        if (!(error instanceof TraillineError)) throw error;
+        if (!(error instanceof HtmlineageError)) throw error;
         sendText(res, 500, error.message);
       }
     } else if (path.startsWith("/report/")) {

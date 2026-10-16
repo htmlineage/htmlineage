@@ -99,7 +99,7 @@ function checkC1(nodes, has, node, page, report) {
     if (seen.has(id)) continue;
     if (!has(id)) {
       seen.add(id);
-      report("C1", id, null, `data-trailline="${id}" resolves to no node`);
+      report("C1", id, null, `data-lineage="${id}" resolves to no node`);
       continue;
     }
     const n = node(id);
