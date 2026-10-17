@@ -226,7 +226,12 @@ function checkNode(id, node, report) {
   // they are what makes a node unreadable or uncomposable.
   const need = (field, test, what) => {
     if (node[field] === undefined) {
-      report("S4", id, field, `${node.step} is missing \`${field}\``);
+      report(
+        "S4",
+        id,
+        field,
+        `${node.step} is missing \`${field}\`; add it: ${what}`,
+      );
       return false;
     }
     if (!test(node[field])) {
