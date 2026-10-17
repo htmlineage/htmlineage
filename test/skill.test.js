@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { cpSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, it } from "node:test";
 
@@ -8,7 +8,11 @@ import { findEmbeddedGraph, readGraph } from "../src/graph/parse.js";
 import { FIELDS, HEADER_FIELDS } from "../src/graph/schema.js";
 import { runCli, tempDir } from "./helpers.js";
 
-const FORMAT = new URL("../skill/references/format.md", import.meta.url);
+const SKILL = new URL("../skills/htmlineage/", import.meta.url);
+const FORMAT = new URL(
+  "../skills/htmlineage/references/format.md",
+  import.meta.url,
+);
 
 /**
  * The field names in the first table under the `### <heading>` line, sorted.
@@ -29,6 +33,22 @@ function fieldsUnder(markdown, heading) {
     } else if (inTable) break;
   }
   return fields.sort();
+}
+
+/**
+ * The `key: value` pairs between the opening `---` line and the next one.
+ * Text that does not start with `---` gives an empty object.
+ */
+function frontmatter(text) {
+  const lines = text.split("\n");
+  if (lines[0] !== "---") return {};
+  const fields = {};
+  for (const line of lines.slice(1)) {
+    if (line === "---") break;
+    const pair = /^([^:\s]+):\s*(.*)$/.exec(line);
+    if (pair) fields[pair[1]] = pair[2];
+  }
+  return fields;
 }
 
 describe("format reference", () => {
@@ -132,7 +152,7 @@ function orderedIdsUnder(markdown, heading) {
 }
 
 const EXAMPLE = fileURLToPath(
-  new URL("../skill/references/example/", import.meta.url),
+  new URL("../skills/htmlineage/references/example/", import.meta.url),
 );
 const EXAMPLE_REPORT = join(EXAMPLE, "august-retention.html");
 
@@ -270,5 +290,35 @@ describe("worked example", () => {
       "1. `yy` nor this",
     ].join("\n");
     assert.deepEqual(orderedIdsUnder(markdown, "Build order"), ["q1", "v1"]);
+  });
+});
+
+describe("skill frontmatter", () => {
+  it("reads the frontmatter fields", () => {
+    const text =
+      "---\nname: abc\ndescription: Does a thing: well.\n---\n\n# Abc\n\nname: not this\n";
+    assert.deepEqual(frontmatter(text), {
+      name: "abc",
+      description: "Does a thing: well.",
+    });
+    assert.deepEqual(frontmatter("# No frontmatter\nname: x\n"), {});
+  });
+
+  it("meets the Agent Skills rules for name and description", () => {
+    const { name, description } = frontmatter(
+      readFileSync(new URL("SKILL.md", SKILL), "utf8"),
+    );
+    assert.match(name, /^[a-z0-9]+(-[a-z0-9]+)*$/);
+    assert.ok(name.length >= 1 && name.length <= 64);
+    assert.equal(name, basename(fileURLToPath(SKILL)));
+    assert.equal(typeof description, "string");
+    assert.ok(description.length >= 1 && description.length <= 1024);
+  });
+
+  it("carries only the required fields", () => {
+    const fields = frontmatter(
+      readFileSync(new URL("SKILL.md", SKILL), "utf8"),
+    );
+    assert.deepEqual(Object.keys(fields).sort(), ["description", "name"]);
   });
 });

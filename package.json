@@ -10,7 +10,7 @@
   "files": [
     "index.js",
     "src/",
-    "skill/"
+    "skills/"
   ],
   "engines": {
     "node": ">=18"
