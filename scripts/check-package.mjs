@@ -49,6 +49,7 @@ const REQUIRED = [
   "src/viewer/client/fonts/SourceSerif4-Medium.woff2",
   "src/viewer/client/fonts/SourceSerif4-SemiBold.woff2",
   "src/viewer/client/fonts/OFL-SourceSerif4.txt",
+  "skill/references/format.md",
   "src/check/rules.js",
   "src/check/summary.js",
   "package.json",

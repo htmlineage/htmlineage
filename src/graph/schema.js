@@ -50,7 +50,7 @@ const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 const ISO_TIMESTAMP =
   /^(\d{4}-\d{2}-\d{2})T(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|[+-](?:[01]\d|2[0-3]):[0-5]\d)$/;
 
-const HEADER_FIELDS = new Set([
+export const HEADER_FIELDS = new Set([
   "lineage",
   "report_id",
   "built_at",
@@ -63,7 +63,7 @@ const HEADER_FIELDS = new Set([
 const COMMON_FIELDS = ["step", "transform"];
 const DERIVED_FIELDS = [...COMMON_FIELDS, "from", "ungrounded"];
 
-const FIELDS = {
+export const FIELDS = {
   sql: new Set([
     ...COMMON_FIELDS,
     "kind",
