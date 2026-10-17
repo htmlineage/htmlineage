@@ -99,7 +99,12 @@ function checkC1(nodes, has, node, page, report) {
     if (seen.has(id)) continue;
     if (!has(id)) {
       seen.add(id);
-      report("C1", id, null, `data-lineage="${id}" resolves to no node`);
+      report(
+        "C1",
+        id,
+        null,
+        `data-lineage="${id}" resolves to no node; add a node with that id to the graph, or correct the id on the page`,
+      );
       continue;
     }
     const n = node(id);
@@ -124,7 +129,7 @@ function checkC1(nodes, has, node, page, report) {
         "C1",
         id,
         null,
-        `${n.step} is not bound to any element on the page`,
+        `${n.step} is not bound to any element on the page; add data-lineage="${id}" to the element that shows it`,
       );
     }
   }
@@ -179,7 +184,9 @@ function checkC3(node, page, report) {
     if (bad.length > 0) {
       const quoted = bad.map((t) => `"${t}"`).join(", ");
       const against =
-        display !== null ? `display is "${display}"` : `value is ${value}`;
+        display !== null
+          ? `display is "${display}"; copy \`display\` onto the page exactly, or update \`value\` and \`display\` if the page is right`
+          : `value is ${value}; correct the page text or \`value\`, and set \`display\` to what the page shows`;
       report("C3", id, "display", `page shows ${quoted} but ${against}`);
     }
   }
@@ -214,7 +221,9 @@ function checkC5(nodes, has, node, report) {
     const unknown = n.from.filter((p) => !has(p));
     if (unknown.length > 0) {
       parts.push(
-        `\`from\` names ${unknown.join(", ")}, which ${unknown.length > 1 ? "are not nodes" : "is not a node"}`,
+        unknown.length > 1
+          ? `\`from\` names ${unknown.join(", ")}, which are not nodes; add those nodes, or remove them from \`from\``
+          : `\`from\` names ${unknown[0]}, which is not a node; add that node, or remove it from \`from\``,
       );
     }
 
@@ -230,18 +239,22 @@ function checkC5(nodes, has, node, report) {
         ok = knownParents.every(
           (p) => p.step === "source" || p.step === "view",
         );
-        message = "a view rests on sources and views only";
+        message =
+          "a view rests on sources and views only; point `from` at the sources and views it selects from";
       } else if (step === "figure" && exprIds === null) {
         ok = knownParents.every(
           (p) => p.step === "source" || p.step === "view",
         );
-        message = "a figure with `sql` rests on sources and views only";
+        message =
+          "a figure with `sql` rests on sources and views only; to compute it from figures, use `expr` instead of `sql`";
       } else if (step === "figure") {
         ok = knownParents.every((p) => p.step === "figure");
-        message = "a figure with `expr` rests on figures only";
+        message =
+          "a figure with `expr` rests on figures only; to pick it from a view, use `sql` instead of `expr`";
       } else {
         ok = knownParents.every((p) => p.step !== "source");
-        message = "an insight rests on views, figures and insights only";
+        message =
+          "an insight rests on views, figures and insights only; put a figure over the source and rest the insight on that";
       }
       if (!ok) parts.push(message);
     }
@@ -250,7 +263,9 @@ function checkC5(nodes, has, node, report) {
       const missing = exprIds.filter((r) => !n.from.includes(r));
       if (missing.length > 0) {
         parts.push(
-          `\`expr\` uses ${missing.join(", ")}, which ${missing.length > 1 ? "are not in `from`" : "is not in `from`"}`,
+          missing.length > 1
+            ? `\`expr\` uses ${missing.join(", ")}, which are not in \`from\`; add them to \`from\``
+            : `\`expr\` uses ${missing[0]}, which is not in \`from\`; add it to \`from\``,
         );
       }
     }
@@ -299,7 +314,7 @@ function checkC6(nodes, has, report) {
             "C6",
             rotated[0],
             "from",
-            `cycle ${[...rotated, rotated[0]].join(" -> ")}`,
+            `cycle ${[...rotated, rotated[0]].join(" -> ")}; break the loop: rest one of these on a view or source instead`,
           );
         }
       } else if (!state.has(next)) {

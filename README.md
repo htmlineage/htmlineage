@@ -11,11 +11,23 @@ AI writes analytics reports faster than data teams can vet them. htmlineage reco
 
 ## Status
 
-⚠️ **Pre-release.** This is an early preview, published under the `next` tag. The lineage format may still change before `0.1.0`. The skill that teaches an AI assistant to write lineage as it builds a report is not included yet.
+⚠️ **Pre-release.** This is an early preview, published under the `next` tag. The lineage format may still change before `0.1.0`.
 
 ## Install
 
-Requires Node 18 or later.
+htmlineage has two parts: a skill that teaches your AI assistant to record lineage while it builds a report, and a CLI that checks, composes and shows it.
+
+**The skill** follows the open [Agent Skills](https://agentskills.io) standard, so it works with Claude Code, Codex, Cursor, Gemini CLI, GitHub Copilot and other tools that read skills. Install it with [skills.sh](https://skills.sh):
+
+```bash
+npx skills add htmlineage/htmlineage -s htmlineage
+```
+
+Or copy [`skills/htmlineage/`](skills/htmlineage/) into your tool's skills folder (for example `.claude/skills/` for Claude Code, `.agents/skills/` for most others).
+
+The skill is opt-in: your assistant uses it when you ask for a report that will be reviewed, traced or shared with leadership, and not for quick questions. To use it for every report in a repository, add a line such as "Every report built here uses htmlineage" to the instructions file your tool reads (`AGENTS.md`, `CLAUDE.md` or similar).
+
+**The CLI** needs Node 18 or later and nothing else:
 
 ```bash
 npx htmlineage@next --help
@@ -61,6 +73,8 @@ Elements on the page point at nodes:
 ```html
 <div class="kpi-value" data-lineage="f1">46.6%</div>
 ```
+
+Every field of every step is in the [field reference](skills/htmlineage/references/format.md), and a complete short report with its graph is in the [worked example](skills/htmlineage/references/example/).
 
 ## License
 

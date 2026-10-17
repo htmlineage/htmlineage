@@ -135,7 +135,8 @@ describe("check: reading", () => {
 
 const R_ERR =
   '<html><head></head><body><p data-lineage="f9">x</p></body></html>';
-const C1_LINE = '    f9   C1 error     data-lineage="f9" resolves to no node';
+const C1_LINE =
+  '    f9   C1 error     data-lineage="f9" resolves to no node; add a node with that id to the graph, or correct the id on the page';
 
 const R_WARN =
   "<html><head></head><body><p>We had 1,240 visits.</p></body></html>";
@@ -251,7 +252,8 @@ describe("check: output", () => {
           severity: "error",
           node: "f9",
           field: null,
-          message: 'data-lineage="f9" resolves to no node',
+          message:
+            'data-lineage="f9" resolves to no node; add a node with that id to the graph, or correct the id on the page',
         },
         {
           code: "C2",
@@ -296,7 +298,7 @@ describe("check: output", () => {
     assert.equal(code, 1);
     assert.equal(
       out,
-      `${ZERO}\n\n  needs attention\n    graph   \x1b[33mC2 warning\x1b[0m   ${C2_MSG}\n    f9      \x1b[31mC1 error\x1b[0m     data-lineage="f9" resolves to no node`,
+      `${ZERO}\n\n  needs attention\n    graph   \x1b[33mC2 warning\x1b[0m   ${C2_MSG}\n    f9      \x1b[31mC1 error\x1b[0m     data-lineage="f9" resolves to no node; add a node with that id to the graph, or correct the id on the page`,
     );
   });
 });
@@ -351,7 +353,7 @@ describe("check: fixtures", () => {
     "    f2   S7 warning   figure has no `label` (what the number is, in words)",
     "    f4   S9 warning   `desc` is 137 characters; keep it to one line of 120 or fewer",
     '    i1   C2 warning   bare number "1,240" is not inside a figure\'s span',
-    '    f1   C3 warning   page shows "$58.90" but display is "$61.20"',
+    '    f1   C3 warning   page shows "$58.90" but display is "$61.20"; copy `display` onto the page exactly, or update `value` and `display` if the page is right',
     "    q2   C7 warning   sql source is missing `columns`; SQL does not contain the period as literal dates: '2026-08-01', '2026-08-31'; SQL uses date functions: current_date",
     "    v2   C8 warning   SQL style: uses select *; list the columns",
   ].join("\n");
@@ -396,13 +398,13 @@ describe("check: fixtures", () => {
         "    f5         S8 warning   cannot read `(f1 * f1` at character 1: `(` is never closed",
         "    f2         C9 error     figure has both `sql` and `expr`; keep exactly one",
         "    i1         C4 error     `from` is empty; list the parents, or set `ungrounded: true` if there are none",
-        "    i3         S4 error     insight is missing `text`",
+        "    i3         S4 error     insight is missing `text`; add it: the claim, as text",
         "    Top-Plan   S2 error     `Top-Plan` is not a valid id: use lowercase letters, digits and _, starting with a letter",
         '    m1         S3 error     unknown step "metric"; expected one of source, view, figure, insight',
-        '    f9         C1 error     data-lineage="f9" resolves to no node',
-        "    v2         C1 error     view is not bound to any element on the page",
-        "    i2         C5 error     an insight rests on views, figures and insights only",
-        "    f3         C6 error     cycle f3 -> f4 -> f3",
+        '    f9         C1 error     data-lineage="f9" resolves to no node; add a node with that id to the graph, or correct the id on the page',
+        '    v2         C1 error     view is not bound to any element on the page; add data-lineage="v2" to the element that shows it',
+        "    i2         C5 error     an insight rests on views, figures and insights only; put a figure over the source and rest the insight on that",
+        "    f3         C6 error     cycle f3 -> f4 -> f3; break the loop: rest one of these on a view or source instead",
       ].join("\n"),
     );
     assert.equal(err, "");

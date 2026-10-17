@@ -182,7 +182,7 @@ export function mismatches(data) {
     .filter((i) => i.code === "C3")
     .map(({ node, message }) => {
       const read =
-        /^page shows ((?:"[^"]*"(?:, )?)+) but (?:display is "(.*)"|value is (.*))$/.exec(
+        /^page shows ((?:"[^"]*"(?:, )?)+) but (?:display is "(.*)"|value is (.*?))(?:; |$)/.exec(
           message,
         );
       if (!read) return { node, page: [], graph: null };

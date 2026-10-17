@@ -2,7 +2,12 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import { readGraph } from "../src/graph/parse.js";
-import { RULES, validateGraph } from "../src/graph/schema.js";
+import {
+  FIELDS,
+  HEADER_FIELDS,
+  RULES,
+  validateGraph,
+} from "../src/graph/schema.js";
 import { FIXTURE_NAMES, loadFixture } from "./helpers.js";
 
 const key = ({ code, severity, node }) => `${code} ${severity} ${node}`;
@@ -383,7 +388,23 @@ describe("views, figures, insights", () => {
       graphOf({ i1: { step: "insight", from: ["f1"] } }),
     );
     assert.equal(issue.field, "text");
-    assert.equal(issue.message, "insight is missing `text`");
+    assert.equal(
+      issue.message,
+      "insight is missing `text`; add it: the claim, as text",
+    );
+  });
+
+  it("says what a missing field should hold", () => {
+    const messages = (nodes) =>
+      validateGraph(graphOf(nodes))
+        .filter((i) => i.code === "S4")
+        .map((i) => i.message);
+    assert.deepEqual(messages({ v1: { step: "view", sql: "select 1" } }), [
+      "view is missing `from`; add it: a list of node ids",
+    ]);
+    assert.deepEqual(messages({ q1: { step: "source" } }), [
+      'source is missing `kind`; add it: "sql" or "external"',
+    ]);
   });
 });
 
@@ -570,5 +591,34 @@ describe("desc", () => {
       severity: "warning",
       title: "description is too long or not one line",
     });
+  });
+});
+
+describe("field lists", () => {
+  it("lists the fields each kind of node may carry", () => {
+    const sorted = Object.fromEntries(
+      Object.entries(FIELDS).map(([kind, set]) => [kind, [...set].sort()]),
+    );
+    assert.deepEqual(sorted, {
+      sql: "columns desc how kind mart period rows sql step transform".split(
+        " ",
+      ),
+      external: "columns given kind ref rows step transform type".split(" "),
+      view: "columns desc encoding from rows sql step transform ungrounded".split(
+        " ",
+      ),
+      figure:
+        "desc display expr from label sql step transform ungrounded value".split(
+          " ",
+        ),
+      insight: "from step text transform ungrounded".split(" "),
+    });
+  });
+
+  it("lists the fields a graph header may carry", () => {
+    assert.deepEqual(
+      [...HEADER_FIELDS].sort(),
+      "builder_tool built_at lineage nodes report_id signature".split(" "),
+    );
   });
 });
