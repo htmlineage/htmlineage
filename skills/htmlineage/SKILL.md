@@ -88,7 +88,13 @@ days". A report must give the same numbers when it is run again next month.
   `check` reads a number joined to a time unit by a hyphen as part of a
   definition, not a claim to trace.
 - **Opinion and forecast.** A claim from judgement or outside knowledge is an
-  insight with `"ungrounded": true` and `"from": []`.
+  insight with `"ungrounded": true` and `"from": []`. Ungrounded means no data
+  backs it. A projection you can compute from figures, such as "at this pace
+  we end the year at $1.47M", is an `expr` figure and the claim rests on it.
+- **Every number a claim leans on.** If a claim depends on a quantity, that
+  quantity is a figure shown on the page and the claim rests on it. "All of
+  the growth came from new customers" needs new MRR on the page, not only the
+  totals beside it.
 
 ## Describe each step
 
