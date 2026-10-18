@@ -64,6 +64,7 @@ export function parseDisplayNumber(text) {
  * @param {{ bindings: {id,text,offset}[], prose: {text,node,offset}[] }} page
  * @returns {{ code, severity, node: string|null, field: string|null, message: string, fix: string|null }[]}
  *   `message` says what is wrong; `fix`, when there is one, what to change.
+ *   C7 and C8 list several findings in one message and have no `fix`.
  */
 export function checkRules(graph, page) {
   const nodes = graph?.nodes;
@@ -106,7 +107,7 @@ function checkC1(nodes, has, node, page, report) {
         id,
         null,
         `data-lineage="${id}" resolves to no node`,
-        id === ""
+        id.trim() === ""
           ? "put a node id in the attribute, or remove the attribute"
           : "add a node with that id to the graph, or correct the id on the page",
       );

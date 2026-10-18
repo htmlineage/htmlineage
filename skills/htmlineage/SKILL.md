@@ -53,8 +53,8 @@ leave it out to make the report look cleaner.
    `check` again. It is the last thing you do before you hand the report over.
 
 `check` exits 0 when the report passes, with or without warnings, and 1 when
-it does not. Exit 2 means the command was wrong (a bad flag, a missing file
-name), not the graph: fix the command, not the graph. Never write the embedded
+it does not. Exit 2 means the command was wrong (a bad flag, or no report
+named): fix the command, not the graph. Never write the embedded
 `<script>` block yourself; `check` does.
 
 ## Pin time

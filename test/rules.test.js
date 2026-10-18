@@ -91,6 +91,14 @@ describe("C1", () => {
     ]);
   });
 
+  it("asks for an id when the attribute holds only spaces", () => {
+    const issues = only(checkRules({ nodes: {} }, pageOf([" "])), "C1");
+    assert.deepEqual(
+      issues.map((i) => i.fix),
+      ["put a node id in the attribute, or remove the attribute"],
+    );
+  });
+
   it("reports views, figures and insights bound nowhere", () => {
     const nodes = {
       q1: { step: "source", kind: "sql" },

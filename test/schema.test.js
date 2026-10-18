@@ -339,7 +339,7 @@ describe("views, figures, insights", () => {
     assert.deepEqual(issueFor("f2 * 2 -- doubled").map(key), ["S8 warning f1"]);
     assert.equal(
       issueFor("f2 * 2 -- doubled")[0].message,
-      "cannot read `f2 * 2 -- doubled` at character 8: `--` starts a comment; put notes in the node's `label`",
+      "cannot read `f2 * 2 -- doubled` at character 8: `--` starts a comment",
     );
   });
 

@@ -121,8 +121,8 @@ function describe(value) {
 /**
  * Validate a parsed graph. Never throws on bad input; returns a flat list of
  * issues, each `{ code, severity, node, field, message, fix }`. `node` is null
- * for header problems; `fix` is what to change, or null when the message says
- * it all. An empty list means the shape is sound.
+ * for header problems; `fix` is what to change, or null. A few messages still
+ * carry advice of their own, such as the style findings C8 lists. An empty list means the shape is sound.
  */
 export function validateGraph(graph) {
   const issues = [];
@@ -203,7 +203,8 @@ function checkNode(id, node, report) {
       "S2",
       id,
       null,
-      `\`${id}\` is not a valid id: use lowercase letters, digits and _, starting with a letter`,
+      `\`${id}\` is not a valid id`,
+      "use lowercase letters, digits and _, starting with a letter",
     );
   }
 
@@ -430,6 +431,7 @@ function checkFigure(id, node, may, want, report) {
         id,
         "expr",
         `cannot read \`${node.expr}\` at character ${problem.position + 1}: ${problem.message}`,
+        problem.fix,
       );
     }
   }

@@ -400,7 +400,7 @@ describe("check: fixtures", () => {
         "    f2         C9 error     figure has both `sql` and `expr`; keep exactly one",
         "    i1         C4 error     `from` is empty; list the parents, or set `ungrounded: true` if there are none",
         "    i3         S4 error     insight is missing `text`; add it: the claim, as text",
-        "    Top-Plan   S2 error     `Top-Plan` is not a valid id: use lowercase letters, digits and _, starting with a letter",
+        "    Top-Plan   S2 error     `Top-Plan` is not a valid id; use lowercase letters, digits and _, starting with a letter",
         '    m1         S3 error     unknown step "metric"; expected one of source, view, figure, insight',
         '    f9         C1 error     data-lineage="f9" resolves to no node; add a node with that id to the graph, or correct the id on the page',
         '    v2         C1 error     view is not bound to any element on the page; add data-lineage="v2" to the element that shows it',

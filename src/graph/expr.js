@@ -21,7 +21,8 @@ export function exprRefs(source, ids) {
 
 /**
  * Whether the text can be read at all: brackets and quotes close, and there
- * is no comment. Returns null, or { message, position } (0-based).
+ * is no comment. Returns null, or { message, position } (0-based), with a
+ * `fix` when there is something to change beyond the obvious.
  */
 export function exprProblem(source) {
   const open = [];
@@ -36,7 +37,8 @@ export function exprProblem(source) {
     } else if (source.startsWith("--", i) || source.startsWith("/*", i)) {
       const mark = source.slice(i, i + 2);
       return {
-        message: `\`${mark}\` starts a comment; put notes in the node's \`label\``,
+        message: `\`${mark}\` starts a comment`,
+        fix: "put notes in the node's `label`",
         position: i,
       };
     } else if (source[i] === "(") open.push(i);
