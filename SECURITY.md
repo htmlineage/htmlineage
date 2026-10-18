@@ -12,8 +12,8 @@ repository, open the Security tab and choose "Report a vulnerability".
 
 - It listens on 127.0.0.1 only, so other machines cannot reach it.
 - It refuses any request whose `Host` is not that address or `localhost`.
-- It serves the report's folder: the report, its graph, and files beside it
-  such as images. It never serves a name that starts with a dot, and never
-  anything outside that folder.
+- It serves the report, its graph (from `.lineage/` or `--graph`), and files
+  beside the report such as images. It never serves any other file whose name
+  starts with a dot or that lies outside the report's folder.
 
 No part of htmlineage connects to a warehouse or runs SQL.

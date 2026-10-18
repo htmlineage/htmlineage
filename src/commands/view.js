@@ -11,10 +11,12 @@ export const summary = "Serve the report beside its lineage";
 
 export const usage = `htmlineage view <report.html> [options]
 
-Serves a two-pane page on localhost: the report on the left, the lineage of
-whatever you click on the right. Reads the report and its graph, nothing
-else. No database, no credentials. The viewer itself makes no request off
-this machine; the report loads what it would load in any browser.
+Serves a two-pane page on 127.0.0.1: the report on the left, the lineage of
+whatever you click on the right. It serves the report, its graph and files
+beside the report such as images, never a file whose name starts with a dot
+or any other file outside the report's folder. No database, no credentials.
+The viewer itself makes no request off this machine; the report loads what
+it would load in any browser.
 
 Options
   --port <number>  Port to serve on (default: the first free port from 7171)
