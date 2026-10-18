@@ -50,7 +50,7 @@ const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 const ISO_TIMESTAMP =
   /^(\d{4}-\d{2}-\d{2})T(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|[+-](?:[01]\d|2[0-3]):[0-5]\d)$/;
 
-const HEADER_FIELDS = new Set([
+export const HEADER_FIELDS = new Set([
   "lineage",
   "report_id",
   "built_at",
@@ -63,7 +63,7 @@ const HEADER_FIELDS = new Set([
 const COMMON_FIELDS = ["step", "transform"];
 const DERIVED_FIELDS = [...COMMON_FIELDS, "from", "ungrounded"];
 
-const FIELDS = {
+export const FIELDS = {
   sql: new Set([
     ...COMMON_FIELDS,
     "kind",
@@ -120,18 +120,20 @@ function describe(value) {
 
 /**
  * Validate a parsed graph. Never throws on bad input; returns a flat list of
- * issues, each `{ code, severity, node, field, message }`. `node` is null for
- * header problems. An empty list means the shape is sound.
+ * issues, each `{ code, severity, node, field, message, fix }`. `node` is null
+ * for header problems; `fix` is what to change, or null. A few messages still
+ * carry advice of their own, such as the style findings C8 lists. An empty list means the shape is sound.
  */
 export function validateGraph(graph) {
   const issues = [];
-  const report = (code, node, field, message) =>
+  const report = (code, node, field, message, fix) =>
     issues.push({
       code,
       severity: RULES[code].severity,
       node,
       field: field ?? null,
       message,
+      fix: fix ?? null,
     });
 
   if (!isObject(graph)) {
@@ -201,7 +203,8 @@ function checkNode(id, node, report) {
       "S2",
       id,
       null,
-      `\`${id}\` is not a valid id: use lowercase letters, digits and _, starting with a letter`,
+      `\`${id}\` is not a valid id`,
+      "use lowercase letters, digits and _, starting with a letter",
     );
   }
 
@@ -226,7 +229,13 @@ function checkNode(id, node, report) {
   // they are what makes a node unreadable or uncomposable.
   const need = (field, test, what) => {
     if (node[field] === undefined) {
-      report("S4", id, field, `${node.step} is missing \`${field}\``);
+      report(
+        "S4",
+        id,
+        field,
+        `${node.step} is missing \`${field}\``,
+        `add it: ${what}`,
+      );
       return false;
     }
     if (!test(node[field])) {
@@ -265,7 +274,15 @@ function checkNode(id, node, report) {
     may("desc", isString, "a string");
     if (node.ungrounded !== true) want("desc", DESC_HINT);
     const problem = isString(node.desc) && descProblem(node.desc);
-    if (problem) report("S9", id, "desc", problem);
+    if (problem) {
+      report(
+        "S9",
+        id,
+        "desc",
+        problem,
+        `keep it to one line of ${MAX_DESC} or fewer`,
+      );
+    }
   }
 
   if (allowed) {
@@ -290,9 +307,8 @@ function checkNode(id, node, report) {
 /** Why a `desc` is not one short line, or null. Length wins over a break. */
 function descProblem(desc) {
   const length = [...desc].length;
-  const rule = `keep it to one line of ${MAX_DESC} or fewer`;
-  if (length > MAX_DESC) return `\`desc\` is ${length} characters; ${rule}`;
-  if (/[\r\n]/.test(desc)) return `\`desc\` has a line break; ${rule}`;
+  if (length > MAX_DESC) return `\`desc\` is ${length} characters`;
+  if (/[\r\n]/.test(desc)) return "`desc` has a line break";
   return null;
 }
 
@@ -352,7 +368,8 @@ function checkDerived(id, node, need, may, report) {
       "C4",
       id,
       "from",
-      "`from` is empty; list the parents, or set `ungrounded: true` if there are none",
+      "`from` is empty",
+      "list the parents, or set `ungrounded: true` if there are none",
     );
   }
 }
@@ -393,14 +410,16 @@ function checkFigure(id, node, may, want, report) {
       "C9",
       id,
       null,
-      "figure has both `sql` and `expr`; keep exactly one",
+      "figure has both `sql` and `expr`",
+      "keep exactly one",
     );
   } else if (!hasSql && !hasExpr && node.ungrounded !== true) {
     report(
       "C9",
       id,
       null,
-      "figure has neither `sql` nor `expr`; add one, or set `ungrounded: true`",
+      "figure has neither `sql` nor `expr`",
+      "add one, or set `ungrounded: true`",
     );
   }
 
@@ -412,6 +431,7 @@ function checkFigure(id, node, may, want, report) {
         id,
         "expr",
         `cannot read \`${node.expr}\` at character ${problem.position + 1}: ${problem.message}`,
+        problem.fix,
       );
     }
   }

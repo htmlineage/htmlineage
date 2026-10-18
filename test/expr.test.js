@@ -60,11 +60,13 @@ describe("exprProblem", () => {
 
   it("points at a comment and sends the note to label", () => {
     assert.deepEqual(exprProblem("f1 * 2 -- doubled"), {
-      message: "`--` starts a comment; put notes in the node's `label`",
+      message: "`--` starts a comment",
+      fix: "put notes in the node's `label`",
       position: 7,
     });
     assert.deepEqual(exprProblem("f1 /* x */ * 2"), {
-      message: "`/*` starts a comment; put notes in the node's `label`",
+      message: "`/*` starts a comment",
+      fix: "put notes in the node's `label`",
       position: 3,
     });
     assert.equal(exprProblem("case when f1 > 0 then '--' end"), null);

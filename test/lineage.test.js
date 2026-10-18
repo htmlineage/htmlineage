@@ -558,6 +558,14 @@ describe("mismatches", () => {
       { node: "f1", page: ["47%"], graph: "0.466" },
     ]);
   });
+  it("keeps a display that contains a semicolon whole", () => {
+    assert.deepEqual(
+      mismatches(
+        c3('page shows "Paid social" but display is "Paid social; Organic"'),
+      ),
+      [{ node: "f1", page: ["Paid social"], graph: "Paid social; Organic" }],
+    );
+  });
   it("keeps a C3 it cannot read, with no values", () => {
     assert.deepEqual(mismatches(c3("display is `x`")), [
       { node: "f1", page: [], graph: null },

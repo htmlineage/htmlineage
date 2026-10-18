@@ -1,0 +1,167 @@
+{
+  "lineage": "1.0",
+  "nodes": {
+    "q1": {
+      "step": "source",
+      "kind": "sql",
+      "desc": "Monthly 30-day retention inputs for each channel, region and signup cohort, January to August 2026",
+      "mart": "marts.retention_by_channel",
+      "period": {
+        "from": "2026-01-01",
+        "to": "2026-08-31"
+      },
+      "sql": "-- 30-day retention inputs by channel, region and cohort month, Jan to Aug 2026\nselect\n    channel,\n    region,\n    cohort_month,\n    cohort_customers,\n    retained_30d\nfrom marts.retention_by_channel\nwhere cohort_month between '2026-01-01' and '2026-08-31'",
+      "columns": [
+        "channel",
+        "region",
+        "cohort_month",
+        "cohort_customers",
+        "retained_30d"
+      ],
+      "rows": null
+    },
+    "q2": {
+      "step": "source",
+      "kind": "sql",
+      "desc": "New customers for each channel who signed up in August 2026",
+      "mart": "marts.acquisition_by_channel",
+      "period": {
+        "from": "2026-08-01",
+        "to": "2026-08-31"
+      },
+      "sql": "-- New customers by channel, August 2026\nselect\n    channel,\n    signup_month,\n    new_customers\nfrom marts.acquisition_by_channel\nwhere signup_month between '2026-08-01' and '2026-08-31'",
+      "columns": ["channel", "signup_month", "new_customers"],
+      "rows": {
+        "channel": ["paid_social", "paid_search", "organic", "referral"],
+        "signup_month": [
+          "2026-08-01",
+          "2026-08-01",
+          "2026-08-01",
+          "2026-08-01"
+        ],
+        "new_customers": [4120, 3310, 3870, 1900]
+      }
+    },
+    "x1": {
+      "step": "source",
+      "kind": "external",
+      "type": "csv",
+      "ref": "channel-retention-targets.csv",
+      "given": "Retention targets by channel for August 2026, shared as a CSV by the growth lead",
+      "columns": ["channel", "target_retention"],
+      "rows": {
+        "channel": ["paid_social", "paid_search", "organic", "referral"],
+        "target_retention": [0.45, 0.4, 0.43, 0.44]
+      }
+    },
+    "v1": {
+      "step": "view",
+      "desc": "Retention for each channel and month, with each channel ranked against the others in its month",
+      "from": ["q1"],
+      "sql": "-- Monthly 30-day retention by channel, with each channel's rank in its month\nselect\n    channel,\n    cohort_month,\n    sum(retained_30d) / sum(cohort_customers) as retention,\n    rank() over (\n        partition by cohort_month\n        order by sum(retained_30d) / sum(cohort_customers) desc\n    ) as retention_rank\nfrom q1\ngroup by channel, cohort_month",
+      "columns": ["channel", "cohort_month", "retention", "retention_rank"],
+      "encoding": {
+        "x": "cohort_month",
+        "y": "retention",
+        "series": "channel",
+        "visual": "line"
+      },
+      "rows": null
+    },
+    "v2": {
+      "step": "view",
+      "desc": "August new customers and retention for each channel, side by side",
+      "from": ["q1", "q2"],
+      "sql": "-- August new customers and 30-day retention by channel\nselect\n    q2.channel,\n    q2.new_customers,\n    sum(q1.retained_30d) / sum(q1.cohort_customers) as retention\nfrom q2\njoin q1\n    on q1.channel = q2.channel\n    and q1.cohort_month = q2.signup_month\ngroup by q2.channel, q2.new_customers\norder by retention desc",
+      "columns": ["channel", "new_customers", "retention"],
+      "encoding": {
+        "visual": "table"
+      },
+      "rows": null
+    },
+    "f1": {
+      "step": "figure",
+      "desc": "Paid social's retention for the August 2026 signup cohort",
+      "from": ["v1"],
+      "sql": "select retention\nfrom v1\nwhere channel = 'paid_social'\n  and cohort_month = '2026-08-01'",
+      "value": 0.466,
+      "display": "46.6%",
+      "label": "Paid social retention, August"
+    },
+    "f2": {
+      "step": "figure",
+      "desc": "Paid social's retention for the July 2026 signup cohort",
+      "from": ["v1"],
+      "sql": "select retention\nfrom v1\nwhere channel = 'paid_social'\n  and cohort_month = '2026-07-01'",
+      "value": 0.417,
+      "display": "41.7%",
+      "label": "Paid social retention, July"
+    },
+    "f3": {
+      "step": "figure",
+      "desc": "August retention minus July retention, as a share of July retention",
+      "from": ["f1", "f2"],
+      "expr": "(f1 - f2) / f2",
+      "value": 0.1175,
+      "display": "11.8%",
+      "label": "Change in paid social retention, August vs July"
+    },
+    "f4": {
+      "step": "figure",
+      "desc": "Paid social's retention rank among the channels in August 2026",
+      "from": ["v1"],
+      "sql": "select retention_rank\nfrom v1\nwhere channel = 'paid_social'\n  and cohort_month = '2026-08-01'",
+      "value": 1,
+      "display": "#1",
+      "label": "Paid social's retention rank among channels, August"
+    },
+    "f5": {
+      "step": "figure",
+      "desc": "Paid social's August new customers as a share of all channels' August new customers",
+      "from": ["v2"],
+      "sql": "select customer_share\nfrom (\n    select\n        channel,\n        new_customers / sum(new_customers) over () as customer_share\n    from v2\n) as shares\nwhere channel = 'paid_social'",
+      "value": 0.3121,
+      "display": "31.2%",
+      "label": "Paid social share of August new customers"
+    },
+    "f6": {
+      "step": "figure",
+      "desc": "The channel with the highest retention in August 2026",
+      "from": ["v2"],
+      "sql": "select channel\nfrom v2\norder by retention desc\nlimit 1",
+      "value": "paid_social",
+      "display": "Paid social",
+      "label": "Channel with the highest August retention"
+    },
+    "f7": {
+      "step": "figure",
+      "desc": "Paid social's August 2026 retention target",
+      "from": ["x1"],
+      "sql": "select target_retention\nfrom x1\nwhere channel = 'paid_social'",
+      "value": 0.45,
+      "display": "45%",
+      "label": "Paid social retention target, August"
+    },
+    "i1": {
+      "step": "insight",
+      "from": ["f6"],
+      "text": "Paid social led August retention."
+    },
+    "i2": {
+      "step": "insight",
+      "from": ["f1", "f2", "f3", "f4"],
+      "text": "Paid social 30-day retention rose to 46.6% in August from July's 41.7%, a relative gain of 11.8%, and ranked #1 of the four channels."
+    },
+    "i3": {
+      "step": "insight",
+      "from": ["f5", "i2"],
+      "text": "Paid social brought in 31.2% of August's new customers, so its gain lifts retention across the whole base, not just one corner of it."
+    },
+    "i4": {
+      "step": "insight",
+      "from": [],
+      "ungrounded": true,
+      "text": "Paid social's gain is likely to hold into September."
+    }
+  }
+}

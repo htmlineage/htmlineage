@@ -137,7 +137,7 @@ export function formatSummary(summary, { color = false } = {}) {
         node: issue.node ?? "graph",
         tag: `${issue.code} ${severity}`,
         paint: severity === "error" ? RED : YELLOW,
-        detail: issue.message,
+        detail: issue.fix ? `${issue.message}; ${issue.fix}` : issue.message,
       });
     }
   }
