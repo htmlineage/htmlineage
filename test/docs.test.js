@@ -94,7 +94,27 @@ const SHOTS = [
 
 const LOGOS = [".github/assets/logo-light.svg", ".github/assets/logo-dark.svg"];
 
+// npm shows the README of the published version and does not resolve
+// relative paths inside HTML tags, so images point at the repo's raw files.
+const RAW = "https://raw.githubusercontent.com/htmlineage/htmlineage/main/";
+
+/** The repo path an image URL points at, or null if it is not under RAW. */
+const repoPath = (url) =>
+  url && url.startsWith(RAW) ? url.slice(RAW.length) : null;
+
 describe("readme", () => {
+  it("points every image at the repo's raw files, so npm shows them", () => {
+    const markdown = read("README.md");
+    const urls = [
+      ...markdown.matchAll(/<(?:img|source)\b[^>]*\b(?:src|srcset)="([^"]*)"/g),
+    ].map((m) => m[1]);
+    assert.equal(urls.length, 4);
+    assert.deepEqual(
+      urls.filter((url) => repoPath(url) === null),
+      [],
+    );
+  });
+
   it("opens with the logo, light and dark", () => {
     const markdown = read("README.md");
     assert.equal(
@@ -104,12 +124,13 @@ describe("readme", () => {
     const block = /<picture>[\s\S]*?<\/picture>/.exec(markdown)[0];
     assert.ok(
       block.includes(
-        '<source media="(prefers-color-scheme: dark)" srcset=".github/assets/logo-dark.svg">',
+        `<source media="(prefers-color-scheme: dark)" srcset="${RAW}.github/assets/logo-dark.svg">`,
       ),
     );
-    assert.match(
-      block,
-      /<img src="\.github\/assets\/logo-light\.svg" alt="htmlineage"/,
+    assert.ok(
+      block.includes(
+        `<img src="${RAW}.github/assets/logo-light.svg" alt="htmlineage"`,
+      ),
     );
     assert.ok(!markdown.split(/\r?\n/).includes("# htmlineage"));
   });
@@ -117,7 +138,9 @@ describe("readme", () => {
   it("points the logo at files in the repo", () => {
     const paths = logoPaths(read("README.md"));
     assert.equal(paths.length, 2);
-    const missing = paths.filter((path) => !path || !existsSync(ROOT + path));
+    const missing = paths.filter(
+      (url) => !repoPath(url) || !existsSync(ROOT + repoPath(url)),
+    );
     assert.deepEqual(missing, []);
   });
 
@@ -147,10 +170,12 @@ describe("readme", () => {
     const block = shotBlock(read("README.md"));
     assert.ok(
       block.includes(
-        '<source media="(prefers-color-scheme: dark)" srcset=".github/assets/viewer-dark.png">',
+        `<source media="(prefers-color-scheme: dark)" srcset="${RAW}.github/assets/viewer-dark.png">`,
       ),
     );
-    assert.ok(block.includes('<img src=".github/assets/viewer-light.png"'));
+    assert.ok(
+      block.includes(`<img src="${RAW}.github/assets/viewer-light.png"`),
+    );
     const alt =
       /\balt="([^"]*)"/.exec(block)?.[1] ?? /\balt='([^']*)'/.exec(block)?.[1];
     assert.equal(
@@ -193,7 +218,9 @@ describe("readme", () => {
       /<img\b[^>]*\bsrc="([^"]*)"/.exec(block)?.[1],
     ];
     assert.equal(paths.length, 2);
-    const missing = paths.filter((path) => !path || !existsSync(ROOT + path));
+    const missing = paths.filter(
+      (url) => !repoPath(url) || !existsSync(ROOT + repoPath(url)),
+    );
     assert.deepEqual(missing, []);
   });
 
