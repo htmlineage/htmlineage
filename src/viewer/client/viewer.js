@@ -3,6 +3,7 @@
 // the logic with no page in it is in lineage.js; this file is the DOM, the
 // events, the report frame and the clipboard.
 import {
+  copyChainLabel,
   externalTag,
   exprParts,
   isArithmetic,
@@ -444,8 +445,9 @@ function renderSelected(id) {
   const c3 = mismatches(S.fx).find((m) => m.node === id);
   if (c3)
     head += `<p class="c3"><b>${C3_WORDS}.</b> <span>${esc(c3Values(c3))}</span></p>`;
+  const copyLabel = copyChainLabel(S.fx.graph, id);
   head += `<div class="head-act">
-      ${copyBtn("data-copy-chain", id, chainSql(S.fx, id), `Copy SQL for this ${n.step === "insight" ? "claim" : n.step}`, "Every query this rests on, composed into one runnable script")}
+      ${copyLabel ? copyBtn("data-copy-chain", id, chainSql(S.fx, id), copyLabel, "Every query this rests on, composed into one runnable script") : ""}
       ${pageCount(id) ? `<button class="btn" type="button" data-scroll="${esc(id)}">${ICON.page}Show on the page</button>` : ""}
     </div></div>`;
 

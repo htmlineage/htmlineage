@@ -37,6 +37,7 @@ import {
   exprParts,
   tidyExpr,
   groundOf,
+  copyChainLabel,
   externalTag,
   grounding,
   headline,
@@ -335,6 +336,21 @@ describe("externalTag", () => {
     for (const type of [undefined, null, "", "   ", 42]) {
       assert.equal(externalTag(type), "outside source");
     }
+  });
+});
+
+describe("copyChainLabel", () => {
+  it("offers no SQL to copy for an outside source", () => {
+    assert.equal(copyChainLabel(G, "x1"), null);
+  });
+  it("names the step it copies", () => {
+    assert.equal(copyChainLabel(G, "q1"), "Copy SQL for this source");
+    assert.equal(copyChainLabel(G, "v1"), "Copy SQL for this view");
+    assert.equal(copyChainLabel(G, "f1"), "Copy SQL for this figure");
+    assert.equal(copyChainLabel(G, "i1"), "Copy SQL for this claim");
+  });
+  it("offers SQL for a figure over an outside source", () => {
+    assert.equal(copyChainLabel(G, "f4"), "Copy SQL for this figure");
   });
 });
 
@@ -1759,6 +1775,17 @@ describe("lineage: fixtures", () => {
       },
     ]);
     assert.deepEqual(builtFrom(d, "f3"), [q1]);
+  });
+  it("gives no copy label to messy's outside source alone", () => {
+    const d = fx("messy");
+    const nulls = Object.keys(d.graph.nodes).filter(
+      (id) => copyChainLabel(d.graph, id) === null,
+    );
+    assert.deepEqual(nulls, ["t1"]);
+    for (const id of Object.keys(d.graph.nodes)) {
+      if (id !== "t1")
+        assert.equal(typeof copyChainLabel(d.graph, id), "string");
+    }
   });
   it("gives messy's grounding and what is not traced", () => {
     const d = fx("messy");

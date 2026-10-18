@@ -61,6 +61,19 @@ export function externalTag(type) {
 }
 
 /**
+ * The label of the panel head's copy button. An external source has no SQL, so
+ * it gets none.
+ * @param {object} graph
+ * @param {string} id
+ * @returns {string | null}
+ */
+export function copyChainLabel(graph, id) {
+  const n = graph.nodes[id];
+  if (n.kind === "external") return null;
+  return `Copy SQL for this ${n.step === "insight" ? "claim" : n.step}`;
+}
+
+/**
  * What a node rests on: "sql" when its trace is full, "file" when an external
  * source is under it, else "none". A cycle, a missing parent or an ungrounded
  * node with no file under it rests on nothing.

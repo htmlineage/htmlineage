@@ -55,6 +55,14 @@ describe("panel files", () => {
       /import\s*\{[^}]*\bexternalTag\b[^}]*\}\s*from\s*"\.\/lineage\.js"/,
     );
   });
+  it("takes the head's copy label from lineage.js", () => {
+    const js = read("viewer.js");
+    assert.match(
+      js,
+      /import\s*\{[^}]*\bcopyChainLabel\b[^}]*\}\s*from\s*"\.\/lineage\.js"/,
+    );
+    assert.doesNotMatch(js, /Copy SQL for this/);
+  });
   it("keeps the case of an external source's type in the card's meta line", () => {
     const js = read("viewer.js");
     assert.match(
