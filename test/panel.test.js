@@ -38,6 +38,10 @@ const get = (server, path) =>
 
 const read = (name) => readFileSync(join(CLIENT, name), "utf8");
 const reportPath = loadFixture("clean").reportPath;
+const brand = () =>
+  /<a\b[^>]*\bclass="brand"[\s\S]*?<\/a>/.exec(read("index.html"))[0];
+
+const COLOUR_LITERAL = /#[0-9a-f]{3,8}\b|rgba?\(|hsla?\(/i;
 
 describe("panel files", () => {
   it("serves the panel's scripts and styles", async (t) => {
@@ -115,5 +119,73 @@ describe("panel files", () => {
     for (const name of files) {
       assert.doesNotMatch(read(name), /https?:\/\//, name);
     }
+  });
+  it("links an SVG favicon", async (t) => {
+    const links = [...read("index.html").matchAll(/<link\b[^>]*>/g)]
+      .map((m) => m[0])
+      .filter((tag) => /\brel="icon"/.test(tag));
+    assert.equal(links.length, 1);
+    assert.match(links[0], /\btype="image\/svg\+xml"/);
+    assert.match(links[0], /\bhref="\/assets\/favicon\.svg"/);
+    const s = await serve(t, { reportPath });
+    const res = await get(s, "/assets/favicon.svg");
+    assert.equal(res.status, 200);
+    assert.equal(res.headers["content-type"], "image/svg+xml");
+  });
+  it("makes the favicon a standalone SVG", () => {
+    const svg = read("favicon.svg");
+    assert.match(svg, /^(<\?xml[^>]*\?>\s*)?<svg\b/);
+    assert.match(svg, /\bxmlns="http:\/\/www\.w3\.org\/2000\/svg"/);
+    assert.match(svg, /\bviewBox="/);
+    assert.doesNotMatch(svg, /href=|url\(|@import/);
+  });
+  it("draws the favicon as the traced l alone", () => {
+    const svg = read("favicon.svg");
+    assert.equal(svg.match(/<path\b/g).length, 1);
+    assert.equal(svg.match(/<circle\b/g).length, 2);
+    assert.doesNotMatch(svg, /<text\b|<rect\b/);
+  });
+  it("colours the favicon for light and dark browsers", () => {
+    const svg = read("favicon.svg");
+    const colours = new Set(
+      (svg.match(/#[0-9a-f]{6}\b/gi) ?? []).map((c) => c.toLowerCase()),
+    );
+    assert.deepEqual([...colours].sort(), ["#2557d6", "#8fb0ff"]);
+    assert.ok(svg.includes("@media (prefers-color-scheme: dark)"));
+  });
+  it("spells the wordmark with a drawn l and no gaps", () => {
+    assert.match(brand(), /htm<svg\b[\s\S]*?<\/svg\s*>ineage/);
+  });
+  it("drops the two-bar mark", () => {
+    assert.equal(brand().match(/<svg\b/g).length, 1);
+    assert.doesNotMatch(brand(), /<rect\b/);
+  });
+  it("keeps the drawn l out of the accessible name", () => {
+    assert.match(/<svg\b[^>]*>/.exec(brand())[0], /\baria-hidden="true"/);
+    assert.match(
+      /<a\b[^>]*>/.exec(brand())[0],
+      /\baria-label="htmlineage, report summary"/,
+    );
+  });
+  const brandRules = () =>
+    [
+      ...read("viewer.css")
+        .replace(/\/\*[\s\S]*?\*\//g, "")
+        .matchAll(/([^{}]+)\{([^}]*)\}/g),
+    ]
+      .map(([, selector, body]) => ({ selector: selector.trim(), body }))
+      .filter(({ selector }) => selector.startsWith(".brand"));
+
+  it("draws the l in the accent colour of either mode", () => {
+    assert.doesNotMatch(brand(), COLOUR_LITERAL);
+    assert.ok(
+      brand().includes("var(--act)") ||
+        brandRules().some(({ body }) => body.includes("var(--act)")),
+    );
+  });
+
+  it("pins no colour literal in a brand rule", () => {
+    const pinned = brandRules().filter(({ body }) => COLOUR_LITERAL.test(body));
+    assert.deepEqual(pinned, []);
   });
 });

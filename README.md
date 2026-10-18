@@ -1,4 +1,7 @@
-# htmlineage
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset=".github/assets/logo-dark.svg">
+  <img src=".github/assets/logo-light.svg" alt="htmlineage" width="420">
+</picture>
 
 **A provenance layer for AI-generated reports.** Every number, chart, and claim traces back to the query that produced it.
 

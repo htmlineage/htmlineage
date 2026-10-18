@@ -65,7 +65,66 @@ function htmlineageCommands(markdown) {
     .map((words) => words.slice(2));
 }
 
+/** The `src` and `srcset` paths of the README's opening `<picture>` block. */
+function logoPaths(markdown) {
+  const block = /^<picture>[\s\S]*?<\/picture>/m.exec(markdown)?.[0] ?? "";
+  return [
+    /<source\b[^>]*\bsrcset="([^"]*)"/.exec(block)?.[1],
+    /<img\b[^>]*\bsrc="([^"]*)"/.exec(block)?.[1],
+  ];
+}
+
+const LOGOS = [".github/assets/logo-light.svg", ".github/assets/logo-dark.svg"];
+
 describe("readme", () => {
+  it("opens with the logo, light and dark", () => {
+    const markdown = read("README.md");
+    assert.equal(
+      markdown.split(/\r?\n/).find((l) => l.trim() !== ""),
+      "<picture>",
+    );
+    const block = /<picture>[\s\S]*?<\/picture>/.exec(markdown)[0];
+    assert.ok(
+      block.includes(
+        '<source media="(prefers-color-scheme: dark)" srcset=".github/assets/logo-dark.svg">',
+      ),
+    );
+    assert.match(
+      block,
+      /<img src="\.github\/assets\/logo-light\.svg" alt="htmlineage"/,
+    );
+    assert.ok(!markdown.split(/\r?\n/).includes("# htmlineage"));
+  });
+
+  it("points the logo at files in the repo", () => {
+    const paths = logoPaths(read("README.md"));
+    assert.equal(paths.length, 2);
+    const missing = paths.filter((path) => !path || !existsSync(ROOT + path));
+    assert.deepEqual(missing, []);
+  });
+
+  it("draws the logo without needing the font", () => {
+    for (const name of LOGOS) {
+      const svg = read(name);
+      assert.match(svg, /^(<\?xml[^>]*\?>\s*)?<svg\b/, name);
+      assert.match(svg, /\bxmlns="http:\/\/www\.w3\.org\/2000\/svg"/, name);
+      assert.match(svg, /\bviewBox="/, name);
+      assert.doesNotMatch(svg, /<text\b|@font-face|href=|url\(/, name);
+    }
+  });
+
+  it("colours the logo for each mode", () => {
+    const colours = (name) => [
+      ...new Set(
+        (read(name).match(/#[0-9a-f]{6}\b/gi) ?? []).map((c) =>
+          c.toLowerCase(),
+        ),
+      ),
+    ];
+    assert.deepEqual(colours(LOGOS[0]).sort(), ["#1f2328", "#2557d6"]);
+    assert.deepEqual(colours(LOGOS[1]).sort(), ["#8fb0ff", "#dfe2e8"]);
+  });
+
   it("reads the shell commands out of fenced blocks", () => {
     const markdown = [
       "Run `npx htmlineage view x.html` in prose.",

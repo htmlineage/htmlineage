@@ -159,29 +159,30 @@ svg {
 .brand {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
   color: var(--ink);
   text-decoration: none;
   font: 700 13px/1 var(--f-mono);
-  letter-spacing: 0.04em;
   text-transform: lowercase;
   padding: 6px 4px;
   margin-left: -4px;
   border-radius: 4px;
 }
+/* the l is drawn in one mono cell (0.6em wide) and sits on the baseline */
 .brand svg {
-  width: 14px;
-  height: 17px;
-  stroke-width: 1.6;
+  width: 0.6em;
+  height: 1em;
+  margin-top: 0.18em;
+  overflow: visible;
+  stroke: var(--act);
+  stroke-width: 19;
+  stroke-linejoin: round;
 }
-.brand .fill {
-  fill: currentColor;
-  stroke: none;
+.brand .open {
+  stroke-width: 8;
 }
-.brand .hatch {
-  fill: currentColor;
+.brand .end {
+  fill: var(--act);
   stroke: none;
-  opacity: 0.4;
 }
 .rail-report {
   color: var(--ink-3);
