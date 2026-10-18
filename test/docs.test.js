@@ -74,6 +74,24 @@ function logoPaths(markdown) {
   ];
 }
 
+/** The README's second `<picture>` block: the viewer screenshot. */
+function shotBlock(markdown) {
+  const blocks = markdown.match(/<picture>[\s\S]*?<\/picture>/g) ?? [];
+  return blocks[1] ?? "";
+}
+
+/** Replace the few HTML entities an `alt` value may carry. */
+const decode = (text) =>
+  text
+    .replaceAll("&quot;", '"')
+    .replaceAll("&#34;", '"')
+    .replaceAll("&amp;", "&");
+
+const SHOTS = [
+  ".github/assets/viewer-light.png",
+  ".github/assets/viewer-dark.png",
+];
+
 const LOGOS = [".github/assets/logo-light.svg", ".github/assets/logo-dark.svg"];
 
 describe("readme", () => {
@@ -123,6 +141,76 @@ describe("readme", () => {
     ];
     assert.deepEqual(colours(LOGOS[0]).sort(), ["#1f2328", "#2557d6"]);
     assert.deepEqual(colours(LOGOS[1]).sort(), ["#8fb0ff", "#dfe2e8"]);
+  });
+
+  it("shows the viewer under the opening lines, light and dark", () => {
+    const block = shotBlock(read("README.md"));
+    assert.ok(
+      block.includes(
+        '<source media="(prefers-color-scheme: dark)" srcset=".github/assets/viewer-dark.png">',
+      ),
+    );
+    assert.ok(block.includes('<img src=".github/assets/viewer-light.png"'));
+    const alt =
+      /\balt="([^"]*)"/.exec(block)?.[1] ?? /\balt='([^']*)'/.exec(block)?.[1];
+    assert.equal(
+      decode(alt ?? ""),
+      'The htmlineage viewer: a quarterly business review on the left, and on the right how its "Gap to year-end target" figure was computed',
+    );
+  });
+
+  it("puts the screenshot right after the tagline", () => {
+    const lines = read("README.md").split(/\r?\n/);
+    const logoEnd = lines.indexOf("</picture>");
+    const shotStart = lines.indexOf("<picture>", logoEnd);
+    const between = lines.slice(logoEnd + 1, shotStart).filter((l) => l.trim());
+    assert.equal(between.length, 1);
+    assert.ok(
+      between[0].startsWith("**A provenance layer for AI-generated reports.**"),
+    );
+    const shotEnd = lines.indexOf("</picture>", shotStart);
+    const after = lines.slice(shotEnd + 1).filter((l) => l.trim());
+    assert.ok(after[1].startsWith("AI writes analytics reports"));
+  });
+
+  it("captions the screenshot as sample data", () => {
+    const lines = read("README.md").split(/\r?\n/);
+    const shotEnd = lines.indexOf(
+      "</picture>",
+      lines.indexOf("</picture>") + 1,
+    );
+    const caption = lines.slice(shotEnd + 1).find((l) => l.trim());
+    assert.equal(
+      caption,
+      "<sub>The viewer on a sample report. Halden is a fictional company and its data is made up.</sub>",
+    );
+  });
+
+  it("points the screenshot at files in the repo", () => {
+    const block = shotBlock(read("README.md"));
+    const paths = [
+      /<source\b[^>]*\bsrcset="([^"]*)"/.exec(block)?.[1],
+      /<img\b[^>]*\bsrc="([^"]*)"/.exec(block)?.[1],
+    ];
+    assert.equal(paths.length, 2);
+    const missing = paths.filter((path) => !path || !existsSync(ROOT + path));
+    assert.deepEqual(missing, []);
+  });
+
+  it("ships the screenshot at twice a 1440 by 900 window", () => {
+    for (const name of SHOTS) {
+      const head = readFileSync(ROOT + name).subarray(0, 24);
+      assert.equal(
+        head.subarray(0, 8).toString("hex"),
+        "89504e470d0a1a0a",
+        name,
+      );
+      assert.deepEqual(
+        [head.readUInt32BE(16), head.readUInt32BE(20)],
+        [2880, 1800],
+        name,
+      );
+    }
   });
 
   it("reads the shell commands out of fenced blocks", () => {
