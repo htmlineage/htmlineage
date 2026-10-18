@@ -6,7 +6,7 @@
 npm install
 ```
 
-Node 18+ is required (CI runs on 18, 20, and 22).
+Node 18+ is required (CI runs on 18, 20, 22, and 24).
 
 ## Before you push
 
@@ -25,6 +25,11 @@ index.js              Executable shim; everything real lives in src/
 src/cli.js            Argument dispatch and exit-code handling
 src/commands/         One module per command: check, view, sql
 src/graph/            The file format: schema, expressions, reading the graph
+src/check/            The cross-checks between the graph and the report
+src/html/             Reading the report, and writing lineage into it
+src/sql/              Composing the graph into one SQL script
+src/viewer/           The local server and the page it serves
+skills/               The skill, shipped with the package
 test/                 node:test suites; test/fixtures/ holds the format contract
 scripts/              Repo maintenance, not shipped
 ```
@@ -78,6 +83,9 @@ Same allowed types as branches. Commits are checked with `commitlint`.
 
 ## Releasing
 
-Publishing to npm is automated: cut a GitHub Release (tag `vX.Y.Z`), and the
-`Publish` workflow runs `npm publish` with provenance. Bump the version in
-`package.json` in the release PR beforehand.
+Publishing to npm is automated: publish a GitHub Release and the `Publish`
+workflow runs `npm publish` with provenance. A pre-release publishes under the
+`next` tag and a release under `latest`. The tag is the version with a `v`, for
+example `v0.1.0-beta.0`. Bump the version in `package.json` in the release PR
+beforehand. There is no npm token: the workflow is the package's trusted
+publisher.

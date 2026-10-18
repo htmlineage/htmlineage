@@ -11,7 +11,8 @@ right, and you do not change it.
 npx htmlineage check <report>.html --no-embed
 ```
 
-`--no-embed` leaves the file untouched. Read the summary top-down:
+`--no-embed` leaves the file untouched. Read the summary. It lists errors
+last, but take them first:
 
 - **Errors.** The lineage is broken. Say so first: nothing below can be traced
   with confidence until the builder fixes it, and `htmlineage sql` refuses

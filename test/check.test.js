@@ -64,6 +64,18 @@ describe("check: invocation", () => {
       "htmlineage: expected one report, got 2\nTry `htmlineage check --help`.",
     );
   });
+
+  it("ends its help with a pointer to the rule reference", async () => {
+    const { code, out } = await runCli(["check", "--help"]);
+    assert.equal(code, 0);
+    assert.ok(
+      out.endsWith(
+        "\n\nWhat each issue code means and how to fix it:\n" +
+          "  https://github.com/htmlineage/htmlineage/blob/main/CHECKS.md",
+      ),
+      out,
+    );
+  });
 });
 
 describe("check: reading", () => {

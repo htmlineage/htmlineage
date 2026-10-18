@@ -107,19 +107,22 @@ const USAGE = (message) =>
   `htmlineage: ${message}\nTry \`htmlineage view --help\`.`;
 
 describe("view: help", () => {
-  it("says what leaves the machine and what does not", async () => {
+  it("says what it serves and what leaves the machine", async () => {
     const { code, out } = await runCli(["view", "--help"]);
     assert.equal(code, 0);
     assert.ok(
       out.includes(
         [
-          "Serves a two-pane page on localhost: the report on the left, the lineage of",
-          "whatever you click on the right. Reads the report and its graph, nothing",
-          "else. No database, no credentials. The viewer itself makes no request off",
-          "this machine; the report loads what it would load in any browser.",
+          "Serves a two-pane page on 127.0.0.1: the report on the left, the lineage of",
+          "whatever you click on the right. It serves the report, its graph and files",
+          "beside the report such as images, never a file whose name starts with a dot",
+          "or any other file outside the report's folder. No database, no credentials.",
+          "The viewer itself makes no request off this machine; the report loads what",
+          "it would load in any browser.",
         ].join("\n"),
       ),
     );
+    assert.doesNotMatch(out, /nothing\s+else/);
     assert.doesNotMatch(out, /no network/i);
   });
 });

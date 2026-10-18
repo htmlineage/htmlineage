@@ -35,6 +35,7 @@ const REQUIRED = [
   "src/viewer/payload.js",
   "src/viewer/server.js",
   "src/viewer/client/index.html",
+  "src/viewer/client/favicon.svg",
   "src/viewer/client/viewer.js",
   "src/viewer/client/lineage.js",
   "src/viewer/client/bridge.js",

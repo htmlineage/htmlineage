@@ -26,7 +26,10 @@ Options
   --no-embed       Check only; leave the report file untouched
   --json           Print the summary as JSON instead of prose
   --quiet          Print nothing; rely on the exit code
-  -h, --help       Show this help`;
+  -h, --help       Show this help
+
+What each issue code means and how to fix it:
+  https://github.com/htmlineage/htmlineage/blob/main/CHECKS.md`;
 
 export const options = {
   graph: { type: "string" },
