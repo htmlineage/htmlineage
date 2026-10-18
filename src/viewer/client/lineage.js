@@ -50,6 +50,30 @@ function underneath(nodes, id) {
 }
 
 /**
+ * How an external source is named in a label: by its type, as a tag.
+ * @param {unknown} type
+ * @returns {string}
+ */
+export function externalTag(type) {
+  return typeof type === "string" && type.trim()
+    ? `${type} source`
+    : "outside source";
+}
+
+/**
+ * The label of the panel head's copy button. An external source has no SQL, so
+ * it gets none.
+ * @param {object} graph
+ * @param {string} id
+ * @returns {string | null}
+ */
+export function copyChainLabel(graph, id) {
+  const n = graph.nodes[id];
+  if (n.kind === "external") return null;
+  return `Copy SQL for this ${n.step === "insight" ? "claim" : n.step}`;
+}
+
+/**
  * What a node rests on: "sql" when its trace is full, "file" when an external
  * source is under it, else "none". A cycle, a missing parent or an ungrounded
  * node with no file under it rests on nothing.
@@ -106,7 +130,7 @@ export function headline({ numbers, claims }) {
         : [
             `${numbers.sql} of ${nTotal} numbers ${plural(numbers.sql, "traces", "trace")} to the warehouse.`,
             numbers.file &&
-              `${numbers.file} ${plural(numbers.file, "rests", "rest")} on a file.`,
+              `${numbers.file} ${plural(numbers.file, "rests on an outside source", "rest on outside sources")}.`,
             numbers.none &&
               `${numbers.none} ${plural(numbers.none, "has nothing behind it", "have nothing behind them")}.`,
           ]

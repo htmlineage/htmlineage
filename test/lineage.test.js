@@ -37,6 +37,8 @@ import {
   exprParts,
   tidyExpr,
   groundOf,
+  copyChainLabel,
+  externalTag,
   grounding,
   headline,
   builtOn,
@@ -325,6 +327,33 @@ describe("grounding", () => {
   });
 });
 
+describe("externalTag", () => {
+  it("names an external source by its type", () => {
+    assert.equal(externalTag("csv"), "csv source");
+    assert.equal(externalTag("verbal"), "verbal source");
+  });
+  it("calls a source with no type an outside source", () => {
+    for (const type of [undefined, null, "", "   ", 42]) {
+      assert.equal(externalTag(type), "outside source");
+    }
+  });
+});
+
+describe("copyChainLabel", () => {
+  it("offers no SQL to copy for an outside source", () => {
+    assert.equal(copyChainLabel(G, "x1"), null);
+  });
+  it("names the step it copies", () => {
+    assert.equal(copyChainLabel(G, "q1"), "Copy SQL for this source");
+    assert.equal(copyChainLabel(G, "v1"), "Copy SQL for this view");
+    assert.equal(copyChainLabel(G, "f1"), "Copy SQL for this figure");
+    assert.equal(copyChainLabel(G, "i1"), "Copy SQL for this claim");
+  });
+  it("offers SQL for a figure over an outside source", () => {
+    assert.equal(copyChainLabel(G, "f4"), "Copy SQL for this figure");
+  });
+});
+
 describe("headline", () => {
   it("says when every number and claim is grounded", () => {
     assert.deepEqual(
@@ -346,7 +375,7 @@ describe("headline", () => {
       }),
       {
         numbers:
-          "2 of 6 numbers trace to the warehouse. 2 rest on a file. 2 have nothing behind them.",
+          "2 of 6 numbers trace to the warehouse. 2 rest on outside sources. 2 have nothing behind them.",
         claims: "2 of 4 claims are supported. 2 are stated without support.",
       },
     );
@@ -359,7 +388,7 @@ describe("headline", () => {
       }),
       {
         numbers:
-          "1 of 3 numbers traces to the warehouse. 1 rests on a file. 1 has nothing behind it.",
+          "1 of 3 numbers traces to the warehouse. 1 rests on an outside source. 1 has nothing behind it.",
         claims: "1 of 2 claims is supported. 1 is stated without support.",
       },
     );
@@ -1747,11 +1776,22 @@ describe("lineage: fixtures", () => {
     ]);
     assert.deepEqual(builtFrom(d, "f3"), [q1]);
   });
+  it("gives no copy label to messy's outside source alone", () => {
+    const d = fx("messy");
+    const nulls = Object.keys(d.graph.nodes).filter(
+      (id) => copyChainLabel(d.graph, id) === null,
+    );
+    assert.deepEqual(nulls, ["t1"]);
+    for (const id of Object.keys(d.graph.nodes)) {
+      if (id !== "t1")
+        assert.equal(typeof copyChainLabel(d.graph, id), "string");
+    }
+  });
   it("gives messy's grounding and what is not traced", () => {
     const d = fx("messy");
     assert.deepEqual(headline(grounding(d)), {
       numbers:
-        "2 of 5 numbers trace to the warehouse. 2 rest on a file. 1 has nothing behind it.",
+        "2 of 5 numbers trace to the warehouse. 2 rest on outside sources. 1 has nothing behind it.",
       claims: "1 of 4 claims is supported. 3 are stated without support.",
     });
     assert.deepEqual(untraced(d), [

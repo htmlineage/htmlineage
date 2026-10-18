@@ -5,6 +5,13 @@
 
 **A provenance layer for AI-generated reports.** Every number, chart, and claim traces back to the query that produced it.
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset=".github/assets/viewer-dark.png">
+  <img src=".github/assets/viewer-light.png" alt="The htmlineage viewer: a quarterly business review on the left, and on the right how its &quot;Gap to year-end target&quot; figure was computed">
+</picture>
+
+<sub>The viewer on a sample report. Halden is a fictional company and its data is made up.</sub>
+
 AI writes analytics reports faster than data teams can vet them. htmlineage records where each figure came from — `source → view → figure → insight` — so a reviewer can see the lineage behind any claim before it reaches a CXO deck. A skill teaches your AI assistant to record that lineage while it builds a report, and a small CLI checks it, composes it into one SQL script, and shows it beside the report.
 
 - **Visibility, not verification.** htmlineage shows the lineage; it doesn't assert the numbers are right.

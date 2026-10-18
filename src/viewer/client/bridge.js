@@ -125,9 +125,11 @@
       current = el;
       paint();
       var calm = matchMedia("(prefers-reduced-motion: reduce)").matches;
-      el.scrollIntoView({
+      var r = el.getBoundingClientRect();
+      var top = r.top + window.pageYOffset;
+      window.scrollTo({
+        top: top + r.height / 2 - window.innerHeight / 2,
         behavior: calm ? "auto" : "smooth",
-        block: "center",
       });
       el.classList.remove("tl-flash");
       void el.offsetWidth;
