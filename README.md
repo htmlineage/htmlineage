@@ -1,13 +1,13 @@
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset=".github/assets/logo-dark.svg">
-  <img src=".github/assets/logo-light.svg" alt="htmlineage" width="420">
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/htmlineage/htmlineage/main/.github/assets/logo-dark.svg">
+  <img src="https://raw.githubusercontent.com/htmlineage/htmlineage/main/.github/assets/logo-light.svg" alt="htmlineage" width="420">
 </picture>
 
 **A provenance layer for AI-generated reports.** Every number, chart, and claim traces back to the query that produced it.
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset=".github/assets/viewer-dark.png">
-  <img src=".github/assets/viewer-light.png" alt="The htmlineage viewer: a quarterly business review on the left, and on the right how its &quot;Gap to year-end target&quot; figure was computed">
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/htmlineage/htmlineage/main/.github/assets/viewer-dark.png">
+  <img src="https://raw.githubusercontent.com/htmlineage/htmlineage/main/.github/assets/viewer-light.png" alt="The htmlineage viewer: a quarterly business review on the left, and on the right how its &quot;Gap to year-end target&quot; figure was computed">
 </picture>
 
 <sub>The viewer on a sample report. Halden is a fictional company and its data is made up.</sub>
