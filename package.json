@@ -1,6 +1,6 @@
 {
   "name": "htmlineage",
-  "version": "0.1.0-beta.0",
+  "version": "0.1.0-beta.1",
   "description": "A provenance layer for AI-generated reports — every number, chart, and claim traces back to the query that produced it.",
   "type": "module",
   "main": "index.js",
