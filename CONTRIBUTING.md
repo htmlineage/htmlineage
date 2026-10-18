@@ -6,7 +6,7 @@
 npm install
 ```
 
-Node 18+ is required (CI runs on 18, 20, and 22).
+Node 18+ is required (CI runs on 18, 20, 22, and 24).
 
 ## Before you push
 

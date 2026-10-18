@@ -288,7 +288,13 @@ function checkNode(id, node, report) {
   if (allowed) {
     for (const field of Object.keys(node)) {
       if (!allowed.has(field)) {
-        report("S5", id, field, `unknown field \`${field}\` on a ${node.step}`);
+        const article = /^[aeiou]/.test(node.step) ? "an" : "a";
+        report(
+          "S5",
+          id,
+          field,
+          `unknown field \`${field}\` on ${article} ${node.step}`,
+        );
       }
     }
   }

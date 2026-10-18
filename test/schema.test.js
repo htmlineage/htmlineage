@@ -192,6 +192,19 @@ describe("nodes", () => {
       "S5 warning q1",
     ]);
   });
+
+  it('says "an" before a step that starts with a vowel', () => {
+    const issues = validateGraph(
+      graphOf({
+        f1: figure,
+        i1: { step: "insight", from: ["f1"], text: "Up.", notes: "x" },
+      }),
+    ).filter((issue) => issue.code === "S5");
+    assert.deepEqual(
+      issues.map((issue) => issue.message),
+      ["unknown field `notes` on an insight"],
+    );
+  });
 });
 
 describe("sources", () => {
