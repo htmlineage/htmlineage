@@ -525,7 +525,7 @@ describe("fixtures", () => {
         '    f9         C1 error     data-lineage="f9" resolves to no node; add a node with that id to the graph, or correct the id on the page',
         '    v2         C1 error     view is not bound to any element on the page; add data-lineage="v2" to the element that shows it',
         "    i2         C5 error     an insight rests on views, figures and insights only; put a figure over the source and rest the insight on that",
-        "    f3         C6 error     cycle f3 -> f4 -> f3; break the loop: rest one of these on a view or source instead",
+        "    f3         C6 error     cycle f3 -> f4 -> f3; break the loop: take f4 out of f3's `from`, or remove another link in it",
       ].join("\n"),
     );
   });

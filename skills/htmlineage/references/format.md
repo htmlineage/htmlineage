@@ -76,6 +76,7 @@ figure, then insight. A node's `step` says which it is.
 {
   "step": "figure",
   "from": ["f1", "f2"],
+  "desc": "Change in paid social retention from July to August, relative to July",
   "expr": "(f1 - f2) / f2",
   "value": 0.1175,
   "display": "11.8%",
@@ -87,7 +88,7 @@ figure, then insight. A node's `step` says which it is.
 {
   "step": "insight",
   "from": ["f3"],
-  "text": "Paid social retention rose 11.8%."
+  "text": "Paid social retention rose by a relative 11.8%."
 }
 ```
 
@@ -119,7 +120,8 @@ Put `data-lineage="<id>"` on the element that shows the node:
 ```html
 <span data-lineage="f3">11.8%</span>
 <p data-lineage="i1">
-  Paid social retention rose <span data-lineage="f3">11.8%</span>.
+  Paid social retention rose by a relative
+  <span data-lineage="f3">11.8%</span>.
 </p>
 <div data-lineage="v1"><svg></svg></div>
 <table data-lineage="v2"></table>

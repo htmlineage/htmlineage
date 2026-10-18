@@ -46,14 +46,16 @@ leave it out to make the report look cleaner.
 3. Put `data-lineage="<id>"` on every element that shows a view, figure or
    insight. A number inside a sentence gets its own span.
 4. Run `npx htmlineage check <report>.html`.
-5. Fix every error. Each message ends with what to change. Run `check` again.
+5. Fix every error. Most messages end with what to change. Run `check` again.
 6. Fix the warnings you can. A warning does not fail the report, but each one
    is something a reviewer will see.
 7. When you edit the page after this, update the graph to match and run
    `check` again. It is the last thing you do before you hand the report over.
 
 `check` exits 0 when the report passes, with or without warnings, and 1 when
-it does not. Never write the embedded `<script>` block yourself; `check` does.
+it does not. Exit 2 means the command was wrong (a bad flag, a missing file
+name), not the graph: fix the command, not the graph. Never write the embedded
+`<script>` block yourself; `check` does.
 
 ## Pin time
 
@@ -76,6 +78,9 @@ days". A report must give the same numbers when it is run again next month.
   the share as a column.
 - **A change or a ratio.** A figure with `expr` over other figures, such as
   `(f1 - f2) / f2`. It has no `sql`.
+- **A change in a rate.** When a percentage moves, say whether the change is
+  in points or relative: "up 4.9 points" or "a relative gain of 11.8%", never
+  a bare "up 11.8%".
 - **A name.** A figure can hold text, such as the top channel's name. Its
   `value` and `display` are the name.
 - **A number you were told.** When someone hands you a number or a file (a

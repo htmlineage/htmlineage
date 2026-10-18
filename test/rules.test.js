@@ -86,7 +86,7 @@ describe("C1", () => {
         node: "",
         field: null,
         message: 'data-lineage="" resolves to no node',
-        fix: "add a node with that id to the graph, or correct the id on the page",
+        fix: "put a node id in the attribute, or remove the attribute",
       },
     ]);
   });
@@ -545,7 +545,7 @@ describe("C6", () => {
         node: "f3",
         field: "from",
         message: "cycle f3 -> f4 -> f3",
-        fix: "break the loop: rest one of these on a view or source instead",
+        fix: "break the loop: take f4 out of f3's `from`, or remove another link in it",
       },
     ]);
 
@@ -557,7 +557,7 @@ describe("C6", () => {
         node: "f4",
         field: "from",
         message: "cycle f4 -> f3 -> f4",
-        fix: "break the loop: rest one of these on a view or source instead",
+        fix: "break the loop: take f3 out of f4's `from`, or remove another link in it",
       },
     ]);
   });
@@ -571,6 +571,10 @@ describe("C6", () => {
     assert.equal(
       only(checkRules({ nodes: a }, pageOf([])), "C6")[0].message,
       "cycle f1 -> f1",
+    );
+    assert.equal(
+      only(checkRules({ nodes: a }, pageOf([])), "C6")[0].fix,
+      "break the loop: take f1 out of f1's `from`, or remove another link in it",
     );
 
     const b = {
@@ -802,7 +806,7 @@ describe("checkRules on fixtures", () => {
     );
     assert.equal(
       issues.find((i) => i.code === "C6").fix,
-      "break the loop: rest one of these on a view or source instead",
+      "break the loop: take f4 out of f3's `from`, or remove another link in it",
     );
   });
 });

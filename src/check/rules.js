@@ -106,7 +106,9 @@ function checkC1(nodes, has, node, page, report) {
         id,
         null,
         `data-lineage="${id}" resolves to no node`,
-        "add a node with that id to the graph, or correct the id on the page",
+        id === ""
+          ? "put a node id in the attribute, or remove the attribute"
+          : "add a node with that id to the graph, or correct the id on the page",
       );
       continue;
     }
@@ -338,7 +340,7 @@ function checkC6(nodes, has, report) {
             rotated[0],
             "from",
             `cycle ${[...rotated, rotated[0]].join(" -> ")}`,
-            "break the loop: rest one of these on a view or source instead",
+            `break the loop: take ${rotated[1] ?? rotated[0]} out of ${rotated[0]}'s \`from\`, or remove another link in it`,
           );
         }
       } else if (!state.has(next)) {
