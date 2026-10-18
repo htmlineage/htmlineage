@@ -3,6 +3,7 @@
 // the logic with no page in it is in lineage.js; this file is the DOM, the
 // events, the report frame and the clipboard.
 import {
+  externalTag,
   exprParts,
   isArithmetic,
   builtFrom,
@@ -131,7 +132,7 @@ const copyBtn = (attr, id, { sql, reason }, label, tip) =>
   `<button class="btn" type="button" ${attr}="${esc(id)}" ${sql === null ? "disabled" : ""} title="${esc(reason ?? tip)}">${ICON.copy}${label}</button>`;
 const STATE_WORD = {
   sql: "Traced to the warehouse",
-  file: "Rests on a file",
+  file: "Rests on an outside source",
   none: "Nothing behind it",
 };
 
@@ -143,7 +144,7 @@ const sourceRow = (row, { count }) => {
     : "";
   const when = mart
     ? `${row.period ? esc(period(row.period)) : "No period"}${row.pinned ? "" : " · not pinned"}${numbers}`
-    : `external file${numbers}`;
+    : `${esc(externalTag(S.nodes[row.node]?.type))}${numbers}`;
   return `<li>${sw(mart ? "full" : "partial")}<span class="what"><code>${wb(row.name ?? "(no name)")}</code></span><span class="when${mart && !row.pinned ? " warn" : ""}">${when}</span></li>`;
 };
 
@@ -238,7 +239,7 @@ function stepCard(id, { isTop = false, bare = false } = {}) {
       if (f.how) meta.push(esc(f.how));
     } else if (f.kind === "external") {
       meta.push(
-        `<span class="warn">external ${esc(n.type || "file")} · htmlineage can't see inside it</span>`,
+        `<span class="warn">${esc(externalTag(n.type))} · htmlineage can't see inside it</span>`,
       );
       if (f.columns.length) meta.push(colsMeta(f.columns));
     } else if (f.kind === "view") {
@@ -269,8 +270,9 @@ function stepCard(id, { isTop = false, bare = false } = {}) {
       `<button class="tog" type="button" data-sql="${esc(id)}" aria-expanded="${open}">${ICON.chev}${esc(show.label)}</button>`,
     );
 
-  // the clicked step has no kind word, so its facts start the sentence
-  if (isTop && meta.length)
+  // the clicked step has no kind word, so its facts start the sentence; an
+  // external source keeps its type as written
+  if (isTop && meta.length && f?.kind !== "external")
     meta[0] = meta[0].replace(
       /^(<span[^>]*>)?([a-z])/,
       (_, tag = "", c) => tag + c.toUpperCase(),

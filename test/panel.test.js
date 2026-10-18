@@ -44,6 +44,24 @@ const brand = () =>
 const COLOUR_LITERAL = /#[0-9a-f]{3,8}\b|rgba?\(|hsla?\(/i;
 
 describe("panel files", () => {
+  it("never calls an external source a file", () => {
+    const js = read("viewer.js");
+    // the `file:` keys of the ground value are not strings; drop them first
+    const strings = js.replace(/\bfile:/g, "");
+    assert.doesNotMatch(strings, /(["'`])[^"'`\n]*\bfile\b[^"'`\n]*\1/);
+    assert.ok(js.includes('"Rests on an outside source"'));
+    assert.match(
+      js,
+      /import\s*\{[^}]*\bexternalTag\b[^}]*\}\s*from\s*"\.\/lineage\.js"/,
+    );
+  });
+  it("keeps the case of an external source's type in the card's meta line", () => {
+    const js = read("viewer.js");
+    assert.match(
+      js,
+      /if \(isTop && meta\.length && f\?\.kind !== "external"\)/,
+    );
+  });
   it("serves the panel's scripts and styles", async (t) => {
     const s = await serve(t, { reportPath });
     const types = {
@@ -167,14 +185,22 @@ describe("panel files", () => {
       /\baria-label="htmlineage, report summary"/,
     );
   });
-  const brandRules = () =>
+  const cssRules = () =>
     [
       ...read("viewer.css")
         .replace(/\/\*[\s\S]*?\*\//g, "")
         .matchAll(/([^{}]+)\{([^}]*)\}/g),
-    ]
-      .map(([, selector, body]) => ({ selector: selector.trim(), body }))
-      .filter(({ selector }) => selector.startsWith(".brand"));
+    ].map(([, selector, body]) => ({ selector: selector.trim(), body }));
+  const brandRules = () =>
+    cssRules().filter(({ selector }) => selector.startsWith(".brand"));
+  const declares = (selector, declaration) =>
+    cssRules()
+      .filter((rule) => rule.selector === selector)
+      .some(({ body }) =>
+        body
+          .split(";")
+          .some((d) => d.replace(/\s+/g, " ").trim() === declaration),
+      );
 
   it("draws the l in the accent colour of either mode", () => {
     assert.doesNotMatch(brand(), COLOUR_LITERAL);
@@ -187,5 +213,21 @@ describe("panel files", () => {
   it("pins no colour literal in a brand rule", () => {
     const pinned = brandRules().filter(({ body }) => COLOUR_LITERAL.test(body));
     assert.deepEqual(pinned, []);
+  });
+
+  it("keeps the frame as wide as the window, whatever the status bar says", () => {
+    assert.ok(declares(".app", "grid-template-columns: minmax(0, 1fr)"));
+  });
+  it("cuts a long selection label with an ellipsis", () => {
+    for (const d of [
+      "overflow: hidden",
+      "text-overflow: ellipsis",
+      "white-space: nowrap",
+    ]) {
+      assert.ok(declares(".statusbar .here-what", d), d);
+    }
+  });
+  it("keeps the selection's full name in the label's title", () => {
+    assert.match(read("viewer.js"), /class="here" title="[^"]*\$\{esc\(name\b/);
   });
 });

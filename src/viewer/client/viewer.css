@@ -142,6 +142,7 @@ svg {
 /* ---------- app frame ---------- */
 .app {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: var(--rail-h) minmax(0, 1fr) auto;
   height: 100vh;
   height: 100dvh;
