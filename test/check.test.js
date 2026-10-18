@@ -252,8 +252,8 @@ describe("check: output", () => {
           severity: "error",
           node: "f9",
           field: null,
-          message:
-            'data-lineage="f9" resolves to no node; add a node with that id to the graph, or correct the id on the page',
+          message: 'data-lineage="f9" resolves to no node',
+          fix: "add a node with that id to the graph, or correct the id on the page",
         },
         {
           code: "C2",
@@ -261,6 +261,7 @@ describe("check: output", () => {
           node: null,
           field: null,
           message: C2_MSG,
+          fix: null,
         },
       ],
     };

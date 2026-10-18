@@ -542,32 +542,28 @@ describe("mismatches", () => {
   });
   it("gives the number on the page and the one in the graph", () => {
     assert.deepEqual(
-      mismatches(
-        c3(
-          'page shows "$58.90" but display is "$61.20"; copy `display` onto the page exactly, or update `value` and `display` if the page is right',
-        ),
-      ),
+      mismatches(c3('page shows "$58.90" but display is "$61.20"')),
       [{ node: "f1", page: ["$58.90"], graph: "$61.20" }],
     );
   });
   it("gives every text the page shows", () => {
     assert.deepEqual(
-      mismatches(
-        c3(
-          'page shows "$58.90", "$59.00" but display is "$61.20"; copy `display` onto the page exactly, or update `value` and `display` if the page is right',
-        ),
-      )[0].page,
+      mismatches(c3('page shows "$58.90", "$59.00" but display is "$61.20"'))[0]
+        .page,
       ["$58.90", "$59.00"],
     );
   });
   it("gives the value when the figure has no display", () => {
+    assert.deepEqual(mismatches(c3('page shows "47%" but value is 0.466')), [
+      { node: "f1", page: ["47%"], graph: "0.466" },
+    ]);
+  });
+  it("keeps a display that contains a semicolon whole", () => {
     assert.deepEqual(
       mismatches(
-        c3(
-          'page shows "47%" but value is 0.466; correct the page text or `value`, and set `display` to what the page shows',
-        ),
+        c3('page shows "Paid social" but display is "Paid social; Organic"'),
       ),
-      [{ node: "f1", page: ["47%"], graph: "0.466" }],
+      [{ node: "f1", page: ["Paid social"], graph: "Paid social; Organic" }],
     );
   });
   it("keeps a C3 it cannot read, with no values", () => {

@@ -120,18 +120,20 @@ function describe(value) {
 
 /**
  * Validate a parsed graph. Never throws on bad input; returns a flat list of
- * issues, each `{ code, severity, node, field, message }`. `node` is null for
- * header problems. An empty list means the shape is sound.
+ * issues, each `{ code, severity, node, field, message, fix }`. `node` is null
+ * for header problems; `fix` is what to change, or null when the message says
+ * it all. An empty list means the shape is sound.
  */
 export function validateGraph(graph) {
   const issues = [];
-  const report = (code, node, field, message) =>
+  const report = (code, node, field, message, fix) =>
     issues.push({
       code,
       severity: RULES[code].severity,
       node,
       field: field ?? null,
       message,
+      fix: fix ?? null,
     });
 
   if (!isObject(graph)) {
@@ -230,7 +232,8 @@ function checkNode(id, node, report) {
         "S4",
         id,
         field,
-        `${node.step} is missing \`${field}\`; add it: ${what}`,
+        `${node.step} is missing \`${field}\``,
+        `add it: ${what}`,
       );
       return false;
     }
@@ -270,7 +273,15 @@ function checkNode(id, node, report) {
     may("desc", isString, "a string");
     if (node.ungrounded !== true) want("desc", DESC_HINT);
     const problem = isString(node.desc) && descProblem(node.desc);
-    if (problem) report("S9", id, "desc", problem);
+    if (problem) {
+      report(
+        "S9",
+        id,
+        "desc",
+        problem,
+        `keep it to one line of ${MAX_DESC} or fewer`,
+      );
+    }
   }
 
   if (allowed) {
@@ -295,9 +306,8 @@ function checkNode(id, node, report) {
 /** Why a `desc` is not one short line, or null. Length wins over a break. */
 function descProblem(desc) {
   const length = [...desc].length;
-  const rule = `keep it to one line of ${MAX_DESC} or fewer`;
-  if (length > MAX_DESC) return `\`desc\` is ${length} characters; ${rule}`;
-  if (/[\r\n]/.test(desc)) return `\`desc\` has a line break; ${rule}`;
+  if (length > MAX_DESC) return `\`desc\` is ${length} characters`;
+  if (/[\r\n]/.test(desc)) return "`desc` has a line break";
   return null;
 }
 
@@ -357,7 +367,8 @@ function checkDerived(id, node, need, may, report) {
       "C4",
       id,
       "from",
-      "`from` is empty; list the parents, or set `ungrounded: true` if there are none",
+      "`from` is empty",
+      "list the parents, or set `ungrounded: true` if there are none",
     );
   }
 }
@@ -398,14 +409,16 @@ function checkFigure(id, node, may, want, report) {
       "C9",
       id,
       null,
-      "figure has both `sql` and `expr`; keep exactly one",
+      "figure has both `sql` and `expr`",
+      "keep exactly one",
     );
   } else if (!hasSql && !hasExpr && node.ungrounded !== true) {
     report(
       "C9",
       id,
       null,
-      "figure has neither `sql` nor `expr`; add one, or set `ungrounded: true`",
+      "figure has neither `sql` nor `expr`",
+      "add one, or set `ungrounded: true`",
     );
   }
 

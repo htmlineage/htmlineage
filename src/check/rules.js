@@ -62,7 +62,8 @@ export function parseDisplayNumber(text) {
  * Run the check rules over a graph and its page.
  * @param {unknown} graph  as returned by readGraph; may be malformed
  * @param {{ bindings: {id,text,offset}[], prose: {text,node,offset}[] }} page
- * @returns {{ code, severity, node: string|null, field: string|null, message: string }[]}
+ * @returns {{ code, severity, node: string|null, field: string|null, message: string, fix: string|null }[]}
+ *   `message` says what is wrong; `fix`, when there is one, what to change.
  */
 export function checkRules(graph, page) {
   const nodes = graph?.nodes;
@@ -72,13 +73,14 @@ export function checkRules(graph, page) {
   const node = (id) => (has(id) && isObject(nodes[id]) ? nodes[id] : null);
 
   const issues = [];
-  const report = (code, n, field, message) =>
+  const report = (code, n, field, message, fix) =>
     issues.push({
       code,
       severity: RULES[code].severity,
       node: n,
       field: field ?? null,
       message,
+      fix: fix ?? null,
     });
 
   checkC1(nodes, has, node, page, report);
@@ -103,7 +105,8 @@ function checkC1(nodes, has, node, page, report) {
         "C1",
         id,
         null,
-        `data-lineage="${id}" resolves to no node; add a node with that id to the graph, or correct the id on the page`,
+        `data-lineage="${id}" resolves to no node`,
+        "add a node with that id to the graph, or correct the id on the page",
       );
       continue;
     }
@@ -114,7 +117,8 @@ function checkC1(nodes, has, node, page, report) {
         "C1",
         id,
         null,
-        `\`${id}\` is a source; bind a figure over it instead`,
+        `\`${id}\` is a source`,
+        "bind a figure over it instead",
       );
     }
   }
@@ -129,7 +133,8 @@ function checkC1(nodes, has, node, page, report) {
         "C1",
         id,
         null,
-        `${n.step} is not bound to any element on the page; add data-lineage="${id}" to the element that shows it`,
+        `${n.step} is not bound to any element on the page`,
+        `add data-lineage="${id}" to the element that shows it`,
       );
     }
   }
@@ -183,11 +188,23 @@ function checkC3(node, page, report) {
     }
     if (bad.length > 0) {
       const quoted = bad.map((t) => `"${t}"`).join(", ");
-      const against =
-        display !== null
-          ? `display is "${display}"; copy \`display\` onto the page exactly, or update \`value\` and \`display\` if the page is right`
-          : `value is ${value}; correct the page text or \`value\`, and set \`display\` to what the page shows`;
-      report("C3", id, "display", `page shows ${quoted} but ${against}`);
+      if (display !== null) {
+        report(
+          "C3",
+          id,
+          "display",
+          `page shows ${quoted} but display is "${display}"`,
+          "copy `display` onto the page exactly, or update `value` and `display` if the page is right",
+        );
+      } else {
+        report(
+          "C3",
+          id,
+          "display",
+          `page shows ${quoted} but value is ${value}`,
+          "correct the page text or `value`, and set `display` to what the page shows",
+        );
+      }
     }
   }
 }
@@ -216,14 +233,19 @@ function checkC5(nodes, has, node, report) {
       }
     }
 
-    const parts = [];
+    // Each problem is its own issue, so each keeps its own fix.
+    const problem = (message, fix) => report("C5", id, "from", message, fix);
 
     const unknown = n.from.filter((p) => !has(p));
-    if (unknown.length > 0) {
-      parts.push(
-        unknown.length > 1
-          ? `\`from\` names ${unknown.join(", ")}, which are not nodes; add those nodes, or remove them from \`from\``
-          : `\`from\` names ${unknown[0]}, which is not a node; add that node, or remove it from \`from\``,
+    if (unknown.length > 1) {
+      problem(
+        `\`from\` names ${unknown.join(", ")}, which are not nodes`,
+        "add those nodes, or remove them from `from`",
+      );
+    } else if (unknown.length === 1) {
+      problem(
+        `\`from\` names ${unknown[0]}, which is not a node`,
+        "add that node, or remove it from `from`",
       );
     }
 
@@ -235,43 +257,44 @@ function checkC5(nodes, has, node, report) {
     if (knownParents.length > 0) {
       let ok;
       let message;
+      let fix;
       if (step === "view") {
         ok = knownParents.every(
           (p) => p.step === "source" || p.step === "view",
         );
-        message =
-          "a view rests on sources and views only; point `from` at the sources and views it selects from";
+        message = "a view rests on sources and views only";
+        fix = "point `from` at the sources and views it selects from";
       } else if (step === "figure" && exprIds === null) {
         ok = knownParents.every(
           (p) => p.step === "source" || p.step === "view",
         );
-        message =
-          "a figure with `sql` rests on sources and views only; to compute it from figures, use `expr` instead of `sql`";
+        message = "a figure with `sql` rests on sources and views only";
+        fix = "to compute it from figures, use `expr` instead of `sql`";
       } else if (step === "figure") {
         ok = knownParents.every((p) => p.step === "figure");
-        message =
-          "a figure with `expr` rests on figures only; to pick it from a view, use `sql` instead of `expr`";
+        message = "a figure with `expr` rests on figures only";
+        fix = "to pick it from a view, use `sql` instead of `expr`";
       } else {
         ok = knownParents.every((p) => p.step !== "source");
-        message =
-          "an insight rests on views, figures and insights only; put a figure over the source and rest the insight on that";
+        message = "an insight rests on views, figures and insights only";
+        fix = "put a figure over the source and rest the insight on that";
       }
-      if (!ok) parts.push(message);
+      if (!ok) problem(message, fix);
     }
 
     if (step === "figure" && exprIds !== null) {
       const missing = exprIds.filter((r) => !n.from.includes(r));
-      if (missing.length > 0) {
-        parts.push(
-          missing.length > 1
-            ? `\`expr\` uses ${missing.join(", ")}, which are not in \`from\`; add them to \`from\``
-            : `\`expr\` uses ${missing[0]}, which is not in \`from\`; add it to \`from\``,
+      if (missing.length > 1) {
+        problem(
+          `\`expr\` uses ${missing.join(", ")}, which are not in \`from\``,
+          "add them to `from`",
+        );
+      } else if (missing.length === 1) {
+        problem(
+          `\`expr\` uses ${missing[0]}, which is not in \`from\``,
+          "add it to `from`",
         );
       }
-    }
-
-    if (parts.length > 0) {
-      report("C5", id, "from", parts.join("; "));
     }
   }
 }
@@ -314,7 +337,8 @@ function checkC6(nodes, has, report) {
             "C6",
             rotated[0],
             "from",
-            `cycle ${[...rotated, rotated[0]].join(" -> ")}; break the loop: rest one of these on a view or source instead`,
+            `cycle ${[...rotated, rotated[0]].join(" -> ")}`,
+            "break the loop: rest one of these on a view or source instead",
           );
         }
       } else if (!state.has(next)) {

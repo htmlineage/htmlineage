@@ -333,6 +333,7 @@ describe("views, figures, insights", () => {
         node: "f1",
         field: "expr",
         message: "cannot read `(f2 + 1` at character 1: `(` is never closed",
+        fix: null,
       },
     ]);
     assert.deepEqual(issueFor("f2 * 2 -- doubled").map(key), ["S8 warning f1"]);
@@ -388,22 +389,20 @@ describe("views, figures, insights", () => {
       graphOf({ i1: { step: "insight", from: ["f1"] } }),
     );
     assert.equal(issue.field, "text");
-    assert.equal(
-      issue.message,
-      "insight is missing `text`; add it: the claim, as text",
-    );
+    assert.equal(issue.message, "insight is missing `text`");
+    assert.equal(issue.fix, "add it: the claim, as text");
   });
 
   it("says what a missing field should hold", () => {
     const messages = (nodes) =>
       validateGraph(graphOf(nodes))
         .filter((i) => i.code === "S4")
-        .map((i) => i.message);
+        .map((i) => [i.message, i.fix]);
     assert.deepEqual(messages({ v1: { step: "view", sql: "select 1" } }), [
-      "view is missing `from`; add it: a list of node ids",
+      ["view is missing `from`", "add it: a list of node ids"],
     ]);
     assert.deepEqual(messages({ q1: { step: "source" } }), [
-      'source is missing `kind`; add it: "sql" or "external"',
+      ["source is missing `kind`", 'add it: "sql" or "external"'],
     ]);
   });
 });
@@ -442,6 +441,7 @@ describe("desc", () => {
         field: "desc",
         message:
           "view has no `desc` (what this step computes and how, in words)",
+        fix: null,
       },
     ]);
   });
@@ -524,6 +524,7 @@ describe("desc", () => {
         node: "v1",
         field: "desc",
         message: "`desc` must be a string",
+        fix: null,
       },
     ]);
   });
@@ -544,8 +545,8 @@ describe("desc", () => {
           severity: "warning",
           node: "v1",
           field: "desc",
-          message:
-            "`desc` is 121 characters; keep it to one line of 120 or fewer",
+          message: "`desc` is 121 characters",
+          fix: "keep it to one line of 120 or fewer",
         },
       ],
     );
@@ -571,8 +572,8 @@ describe("desc", () => {
           severity: "warning",
           node: "v1",
           field: "desc",
-          message:
-            "`desc` has a line break; keep it to one line of 120 or fewer",
+          message: "`desc` has a line break",
+          fix: "keep it to one line of 120 or fewer",
         },
       ],
     );

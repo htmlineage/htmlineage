@@ -401,7 +401,7 @@ function statusBar() {
   const { line, issues, reason } = checkStatus(S.fx);
   const drawer =
     S.drawer && issues.length
-      ? `<ul class="drawer">${issues.map((i) => `<li>${i.node && S.nodes[i.node] ? idBtn(i.node) : ""}<span><b>${esc(i.code)}</b> ${codeify(i.message)}</span></li>`).join("")}</ul>`
+      ? `<ul class="drawer">${issues.map((i) => `<li>${i.node && S.nodes[i.node] ? idBtn(i.node) : ""}<span><b>${esc(i.code)}</b> ${codeify(i.message)}${i.fix ? `; ${codeify(i.fix)}` : ""}</span></li>`).join("")}</ul>`
       : "";
   const label = `${esc(line)}${issues.length ? ` ${ICON.chev}` : ""}`;
   const check = issues.length

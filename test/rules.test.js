@@ -77,16 +77,16 @@ describe("C1", () => {
         severity: "error",
         node: "zz",
         field: null,
-        message:
-          'data-lineage="zz" resolves to no node; add a node with that id to the graph, or correct the id on the page',
+        message: 'data-lineage="zz" resolves to no node',
+        fix: "add a node with that id to the graph, or correct the id on the page",
       },
       {
         code: "C1",
         severity: "error",
         node: "",
         field: null,
-        message:
-          'data-lineage="" resolves to no node; add a node with that id to the graph, or correct the id on the page',
+        message: 'data-lineage="" resolves to no node',
+        fix: "add a node with that id to the graph, or correct the id on the page",
       },
     ]);
   });
@@ -109,32 +109,32 @@ describe("C1", () => {
         severity: "error",
         node: "v1",
         field: null,
-        message:
-          'view is not bound to any element on the page; add data-lineage="v1" to the element that shows it',
+        message: "view is not bound to any element on the page",
+        fix: 'add data-lineage="v1" to the element that shows it',
       },
       {
         code: "C1",
         severity: "error",
         node: "f1",
         field: null,
-        message:
-          'figure is not bound to any element on the page; add data-lineage="f1" to the element that shows it',
+        message: "figure is not bound to any element on the page",
+        fix: 'add data-lineage="f1" to the element that shows it',
       },
       {
         code: "C1",
         severity: "error",
         node: "i1",
         field: null,
-        message:
-          'insight is not bound to any element on the page; add data-lineage="i1" to the element that shows it',
+        message: "insight is not bound to any element on the page",
+        fix: 'add data-lineage="i1" to the element that shows it',
       },
       {
         code: "C1",
         severity: "error",
         node: "i2",
         field: null,
-        message:
-          'insight is not bound to any element on the page; add data-lineage="i2" to the element that shows it',
+        message: "insight is not bound to any element on the page",
+        fix: 'add data-lineage="i2" to the element that shows it',
       },
     ]);
   });
@@ -154,7 +154,8 @@ describe("C1", () => {
         severity: "error",
         node: "q1",
         field: null,
-        message: "`q1` is a source; bind a figure over it instead",
+        message: "`q1` is a source",
+        fix: "bind a figure over it instead",
       },
     ]);
   });
@@ -179,6 +180,7 @@ describe("C2", () => {
         node: "i1",
         field: null,
         message: 'bare number "12%" is not inside a figure\'s span',
+        fix: null,
       },
       {
         code: "C2",
@@ -186,6 +188,7 @@ describe("C2", () => {
         node: "i1",
         field: null,
         message: 'bare number "1,240" is not inside a figure\'s span',
+        fix: null,
       },
       {
         code: "C2",
@@ -193,6 +196,7 @@ describe("C2", () => {
         node: null,
         field: null,
         message: 'bare number "5%" is not inside a figure\'s span',
+        fix: null,
       },
     ]);
   });
@@ -226,8 +230,8 @@ describe("C3", () => {
         severity: "warning",
         node: "f1",
         field: "display",
-        message:
-          'page shows "11.9%" but display is "11.75%"; copy `display` onto the page exactly, or update `value` and `display` if the page is right',
+        message: 'page shows "11.9%" but display is "11.75%"',
+        fix: "copy `display` onto the page exactly, or update `value` and `display` if the page is right",
       },
     ]);
   });
@@ -241,8 +245,8 @@ describe("C3", () => {
         severity: "warning",
         node: "f1",
         field: "display",
-        message:
-          'page shows "Paid Social" but display is "Paid social"; copy `display` onto the page exactly, or update `value` and `display` if the page is right',
+        message: 'page shows "Paid Social" but display is "Paid social"',
+        fix: "copy `display` onto the page exactly, or update `value` and `display` if the page is right",
       },
     ]);
     const good = pageOf([["f1", "Paid social"]]);
@@ -263,8 +267,8 @@ describe("C3", () => {
         severity: "warning",
         node: "f1",
         field: "display",
-        message:
-          'page shows "$58.90", "$57.00" but display is "$61.20"; copy `display` onto the page exactly, or update `value` and `display` if the page is right',
+        message: 'page shows "$58.90", "$57.00" but display is "$61.20"',
+        fix: "copy `display` onto the page exactly, or update `value` and `display` if the page is right",
       },
     ]);
   });
@@ -287,8 +291,8 @@ describe("C3", () => {
         severity: "warning",
         node: "f1",
         field: "display",
-        message:
-          'page shows "51%" but value is 0.5; correct the page text or `value`, and set `display` to what the page shows',
+        message: 'page shows "51%" but value is 0.5',
+        fix: "correct the page text or `value`, and set `display` to what the page shows",
       },
     ]);
 
@@ -300,8 +304,8 @@ describe("C3", () => {
         severity: "warning",
         node: "f1",
         field: "display",
-        message:
-          'page shows "n/a" but display is "4.8%"; copy `display` onto the page exactly, or update `value` and `display` if the page is right',
+        message: 'page shows "n/a" but display is "4.8%"',
+        fix: "copy `display` onto the page exactly, or update `value` and `display` if the page is right",
       },
     ]);
 
@@ -312,12 +316,13 @@ describe("C3", () => {
 });
 
 const c5 = (nodes) => only(checkRules({ nodes }, pageOf([])), "C5");
-const c5Issue = (node, message) => ({
+const c5Issue = (node, message, fix) => ({
   code: "C5",
   severity: "error",
   node,
   field: "from",
   message,
+  fix,
 });
 
 describe("C5", () => {
@@ -343,7 +348,8 @@ describe("C5", () => {
     assert.deepEqual(c5(nodes), [
       c5Issue(
         "v2",
-        "a view rests on sources and views only; point `from` at the sources and views it selects from",
+        "a view rests on sources and views only",
+        "point `from` at the sources and views it selects from",
       ),
     ]);
   });
@@ -371,7 +377,8 @@ describe("C5", () => {
     assert.deepEqual(c5(nodes), [
       c5Issue(
         "fc",
-        "a figure with `sql` rests on sources and views only; to compute it from figures, use `expr` instead of `sql`",
+        "a figure with `sql` rests on sources and views only",
+        "to compute it from figures, use `expr` instead of `sql`",
       ),
     ]);
   });
@@ -395,7 +402,8 @@ describe("C5", () => {
     assert.deepEqual(c5(nodes), [
       c5Issue(
         "ia",
-        "an insight rests on views, figures and insights only; put a figure over the source and rest the insight on that",
+        "an insight rests on views, figures and insights only",
+        "put a figure over the source and rest the insight on that",
       ),
     ]);
   });
@@ -409,7 +417,8 @@ describe("C5", () => {
     assert.deepEqual(c5(nodes), [
       c5Issue(
         "fe",
-        "a figure with `expr` rests on figures only; to pick it from a view, use `sql` instead of `expr`",
+        "a figure with `expr` rests on figures only",
+        "to pick it from a view, use `sql` instead of `expr`",
       ),
     ]);
   });
@@ -437,7 +446,11 @@ describe("C5", () => {
       },
     };
     assert.deepEqual(c5(nodes), [
-      c5Issue("fe", "`expr` uses fd, which is not in `from`; add it to `from`"),
+      c5Issue(
+        "fe",
+        "`expr` uses fd, which is not in `from`",
+        "add it to `from`",
+      ),
     ]);
   });
 
@@ -453,12 +466,13 @@ describe("C5", () => {
     assert.deepEqual(c5(nodes), [
       c5Issue(
         "fe",
-        "`expr` uses fa, fb, which are not in `from`; add them to `from`",
+        "`expr` uses fa, fb, which are not in `from`",
+        "add them to `from`",
       ),
     ]);
   });
 
-  it("gives each part of a message its own fix, in order", () => {
+  it("reports each problem with a node's from on its own, in order", () => {
     const nodes = {
       q1: { step: "source", kind: "sql" },
       v1: { step: "view", from: ["q1"], sql: "s" },
@@ -468,7 +482,13 @@ describe("C5", () => {
     assert.deepEqual(c5(nodes), [
       c5Issue(
         "f3",
-        "`from` names f7, which is not a node; add that node, or remove it from `from`; `expr` uses f2, which is not in `from`; add it to `from`",
+        "`from` names f7, which is not a node",
+        "add that node, or remove it from `from`",
+      ),
+      c5Issue(
+        "f3",
+        "`expr` uses f2, which is not in `from`",
+        "add it to `from`",
       ),
     ]);
   });
@@ -500,16 +520,16 @@ describe("C5", () => {
         severity: "error",
         node: "ig",
         field: "from",
-        message:
-          "`from` names zz, which is not a node; add that node, or remove it from `from`",
+        message: "`from` names zz, which is not a node",
+        fix: "add that node, or remove it from `from`",
       },
       {
         code: "C5",
         severity: "error",
         node: "vz",
         field: "from",
-        message:
-          "`from` names q9, zz, which are not nodes; add those nodes, or remove them from `from`",
+        message: "`from` names q9, zz, which are not nodes",
+        fix: "add those nodes, or remove them from `from`",
       },
     ]);
   });
@@ -524,8 +544,8 @@ describe("C6", () => {
         severity: "error",
         node: "f3",
         field: "from",
-        message:
-          "cycle f3 -> f4 -> f3; break the loop: rest one of these on a view or source instead",
+        message: "cycle f3 -> f4 -> f3",
+        fix: "break the loop: rest one of these on a view or source instead",
       },
     ]);
 
@@ -536,8 +556,8 @@ describe("C6", () => {
         severity: "error",
         node: "f4",
         field: "from",
-        message:
-          "cycle f4 -> f3 -> f4; break the loop: rest one of these on a view or source instead",
+        message: "cycle f4 -> f3 -> f4",
+        fix: "break the loop: rest one of these on a view or source instead",
       },
     ]);
   });
@@ -550,7 +570,7 @@ describe("C6", () => {
     );
     assert.equal(
       only(checkRules({ nodes: a }, pageOf([])), "C6")[0].message,
-      "cycle f1 -> f1; break the loop: rest one of these on a view or source instead",
+      "cycle f1 -> f1",
     );
 
     const b = {
@@ -563,14 +583,8 @@ describe("C6", () => {
     assert.deepEqual(
       bIssues.map(({ node, message }) => [node, message]),
       [
-        [
-          "a",
-          "cycle a -> b -> a; break the loop: rest one of these on a view or source instead",
-        ],
-        [
-          "c",
-          "cycle c -> d -> c; break the loop: rest one of these on a view or source instead",
-        ],
+        ["a", "cycle a -> b -> a"],
+        ["c", "cycle c -> d -> c"],
       ],
     );
 
@@ -617,6 +631,7 @@ describe("C7", () => {
           field: null,
           message:
             "sql source is missing `columns`; SQL does not contain the period as literal dates: '2026-08-01', '2026-08-31'; SQL uses date functions: current_date",
+          fix: null,
         },
       ],
     );
@@ -631,6 +646,7 @@ describe("C7", () => {
         node: "q1",
         field: null,
         message: "sql source is missing `mart`, `period`, `sql`, `columns`",
+        fix: null,
       },
     ]);
   });
@@ -650,6 +666,7 @@ describe("C7", () => {
         field: null,
         message:
           "SQL does not contain the period as literal dates: '2026-01-31'",
+        fix: null,
       },
     ]);
   });
@@ -675,6 +692,7 @@ describe("C8", () => {
           node: "v2",
           field: "sql",
           message: "SQL style: uses select *; list the columns",
+          fix: null,
         },
       ],
     );
@@ -695,6 +713,7 @@ describe("C8", () => {
         node: "q1",
         field: "sql",
         message: "SQL style: uses select *; list the columns",
+        fix: null,
       },
     ]);
     assert.deepEqual(only(checkRules({ nodes }, pageOf([])), "C7"), [
@@ -705,6 +724,7 @@ describe("C8", () => {
         field: null,
         message:
           "SQL does not contain the period as literal dates: '2026-08-01', '2026-08-31'; SQL uses date functions: current_date",
+        fix: null,
       },
     ]);
   });
@@ -728,6 +748,7 @@ describe("C8", () => {
         node: "fa",
         field: "sql",
         message: "SQL style: refer to parents by node id: v1",
+        fix: null,
       },
     ]);
   });
@@ -754,7 +775,11 @@ describe("checkRules on fixtures", () => {
     );
     assert.equal(
       issues.find((i) => i.code === "C3").message,
-      'page shows "$58.90" but display is "$61.20"; copy `display` onto the page exactly, or update `value` and `display` if the page is right',
+      'page shows "$58.90" but display is "$61.20"',
+    );
+    assert.equal(
+      issues.find((i) => i.code === "C3").fix,
+      "copy `display` onto the page exactly, or update `value` and `display` if the page is right",
     );
   });
 
@@ -769,11 +794,15 @@ describe("checkRules on fixtures", () => {
     ]);
     assert.equal(
       issues.find((i) => i.code === "C5").message,
-      "an insight rests on views, figures and insights only; put a figure over the source and rest the insight on that",
+      "an insight rests on views, figures and insights only",
     );
     assert.equal(
       issues.find((i) => i.code === "C6").message,
-      "cycle f3 -> f4 -> f3; break the loop: rest one of these on a view or source instead",
+      "cycle f3 -> f4 -> f3",
+    );
+    assert.equal(
+      issues.find((i) => i.code === "C6").fix,
+      "break the loop: rest one of these on a view or source instead",
     );
   });
 });
